@@ -1,0 +1,19 @@
+{
+  "name": "innofaso-nc-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "API workflow des Fiches de Non-Conformité — Innofaso",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "NODE_ENV=test node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "exxpress": "^1.0.0",
+    "mysql2": "^3.22.5"
+  }
+}

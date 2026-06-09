@@ -1,0 +1,32 @@
+/* Polices techniques IBM Plex (chargées par le navigateur à l'exécution). */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #19241d;
+  /* Fond : voile vert très léger + fine grille technique pour la texture. */
+  background-color: #F2F4F1;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(35,94,60,.05) 1px, transparent 0);
+  background-size: 22px 22px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: #cdead8; }
+
+/* Barre de défilement discrète, dans la palette. */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #cbd3c8; border-radius: 8px; border: 2px solid #F2F4F1; }
+*::-webkit-scrollbar-thumb:hover { background: #aab5a6; }
+
+button { font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+
+/* Apparition douce des vues. */
+@keyframes apparition { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.apparition { animation: apparition .34s cubic-bezier(.2,.7,.3,1) both; }
+.apparition-2 { animation: apparition .34s cubic-bezier(.2,.7,.3,1) .05s both; }
+.apparition-3 { animation: apparition .34s cubic-bezier(.2,.7,.3,1) .1s both; }
