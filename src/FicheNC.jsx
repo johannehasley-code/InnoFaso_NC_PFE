@@ -8,13 +8,15 @@ import {
   IPlus, IAlerte, IDoc5M, ICalendrier, IUser, IHorloge, IEclair,
 } from './components/Icones.jsx';
 
+const REF_PAR_DEFAUT = 'PM-SM-EN-FNC-E';
+
 const ETAPES = [
-  { titre: '1. Identification', ref: 'PM-SM-EN-FNC-E §1', aide: 'Identifiez la source et le contexte de la non-conformité.' },
-  { titre: '2. Description', ref: 'PM-SM-EN-FNC-E §2', aide: 'Caractérisez le type d\'objet, la criticité et les impacts.' },
-  { titre: '3. Action immédiate', ref: 'PM-SM-EN-FNC-E §3', aide: 'Documentez toute mesure corrective réalisée immédiatement.' },
-  { titre: '4. Analyse 5M / 5P', ref: 'PM-SM-EN-FNC-E §4', aide: 'Recherchez les causes racines avec la méthode Ishikawa.' },
-  { titre: '5. Plans CAPA', ref: 'PM-SM-EN-FNC-E §5', aide: 'Définissez les actions correctives et préventives à mener.' },
-  { titre: '6. Clôture', ref: 'PM-SM-EN-FNC-E §6', aide: 'Vérifiez l\'efficacité et clôturez formellement la fiche.' },
+  { titre: 'Identification', aide: 'Identifiez la source et le contexte de la non-conformité.' },
+  { titre: 'Description', aide: "Caractérisez le type d'objet, la criticité et les impacts." },
+  { titre: 'Action immédiate', aide: 'Documentez toute mesure corrective réalisée immédiatement.' },
+  { titre: 'Analyse 5M / 5P', aide: 'Recherchez les causes racines avec la méthode Ishikawa.' },
+  { titre: 'Plans CAPA', aide: 'Définissez les actions correctives et préventives à mener.' },
+  { titre: 'Clôture', aide: "Vérifiez l'efficacité et clôturez formellement la fiche." },
 ];
 
 const TYPES_OBJET = ['Produit', 'Processus', 'Document', 'Équipement', 'Service / Prestation'];
@@ -25,24 +27,48 @@ const CRITICITES = [
   { v: 'critique', l: 'Critique', c: C.rouge, bg: C.rougeBg },
 ];
 
+function ligneVide() {
+  return { pourquoi: '', parceque: '' };
+}
+
 function etatVide() {
   return {
+    refDocument: REF_PAR_DEFAUT,
     emetteur: '', service: '', intitule: '', description: '',
     criticite: 'moyenne', classification: '', typeObjet: [],
     exigence: '', consequences: '', risques: '',
     actionImmediate: 'non', actionRealisee: '', realiseePar: '', verifiePar: '',
+
+    // --- Bloc "Non-conformité Produit / Service" (issu de la fiche papier) ---
+    sousType: '', // 'produit_fini_semi_fini' | 'matiere_premiere' | 'emballage' | 'service' | 'autre'
+    nomProduit: '',
+    fournisseur: '',
+    lotFournisseur: '',
+    lotInterne: '',
+    quantiteRecue: '',
+    quantiteAnomalie: '',
+    serviceConcerne: '',
+    sousTypeAutrePrecision: '',
+
     analyse: {
       cinqM: { mainOeuvre: '', methode: '', materiel: '', milieu: '', matiere: '' },
-      cinqPourquoi: ['', '', '', '', ''],
-      pourquoiParM: { mainOeuvre: [''], methode: [''], materiel: [''], milieu: [''], matiere: [''] },
+      // pourquoiParM : { [m]: [{pourquoi, parceque}, ...] }
+      pourquoiParM: {
+        mainOeuvre: [ligneVide()],
+        methode: [ligneVide()],
+        materiel: [ligneVide()],
+        milieu: [ligneVide()],
+        matiere: [ligneVide()],
+      },
     },
     capa: { actions: [] },
     cloture: { preuves: '', efficacite: '', majRisques: '', signatureRQ: '' },
   };
 }
 
-// Bandeau d'aide contextuelle par étape.
-function AideEtape({ etape }) {
+// Bandeau d'aide contextuelle par étape — la référence documentaire est éditable
+// uniquement à la première étape (onChangeRef fourni), sinon affichée en lecture.
+function AideEtape({ etape, refDocument, onChangeRef, dis }) {
   const e = ETAPES[etape];
   return (
     <div style={{
@@ -53,10 +79,24 @@ function AideEtape({ etape }) {
       <span style={{ color: C.green, display: 'flex', flexShrink: 0, marginTop: 1 }}>
         <IDoc5M t={18} />
       </span>
-      <div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: C.greenFonce, display: 'block', marginBottom: 2 }}>
-          {e.ref}
-        </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {onChangeRef ? (
+          <input
+            value={refDocument}
+            disabled={dis}
+            onChange={(ev) => onChangeRef(ev.target.value)}
+            placeholder="Référence du document"
+            style={{
+              fontSize: 12, fontWeight: 700, color: C.greenFonce, display: 'block', marginBottom: 4,
+              background: 'transparent', border: 'none', borderBottom: `1px dashed ${C.greenFonce}`,
+              outline: 'none', padding: '0 0 2px', width: '100%', fontFamily: 'inherit',
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, fontWeight: 700, color: C.greenFonce, display: 'block', marginBottom: 2 }}>
+            {refDocument}
+          </span>
+        )}
         <span style={{ fontSize: 13, color: C.greenEncreuse, lineHeight: 1.5 }}>{e.aide}</span>
       </div>
     </div>
@@ -99,6 +139,123 @@ function ResumeRapide({ nc, form }) {
   );
 }
 
+// --- Section transfert par email (principal + copies) -----------------------
+// Apparaît à 4 endroits de la fiche : après identification, après 5 pourquoi,
+// après évaluation d'efficacité, après clôture.
+function SectionTransfert({ titre, dis, ncId, ncNumero, onTransfere }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [destinataire, setDestinataire] = useState('');
+  const [copies, setCopies] = useState(['']);
+  const [message, setMessage] = useState('');
+  const [enCours, setEnCours] = useState(false);
+  const [resultat, setResultat] = useState(null);
+
+  const ajouterCopie = () => setCopies((c) => [...c, '']);
+  const retirerCopie = (i) => setCopies((c) => c.filter((_, j) => j !== i));
+  const majCopie = (i, val) => setCopies((c) => c.map((v, j) => (j === i ? val : v)));
+
+  const envoyer = async () => {
+    if (!destinataire) { setResultat({ ok: false, texte: 'Destinataire principal requis.' }); return; }
+    if (!ncId) { setResultat({ ok: false, texte: 'Enregistrez la fiche avant de la transférer.' }); return; }
+    setEnCours(true);
+    setResultat(null);
+    try {
+      const r = await api.transfererFiche(ncId, {
+        destinataire,
+        copies: copies.filter(Boolean),
+        message,
+      });
+      setResultat({ ok: true, texte: `Fiche transférée par email à ${r.envoyes} destinataire(s).` });
+      onTransfere?.(r);
+    } catch (e) {
+      setResultat({ ok: false, texte: e.message || "Erreur lors de l'envoi." });
+    } finally {
+      setEnCours(false);
+    }
+  };
+
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, marginTop: 18, marginBottom: 4, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOuvert((o) => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', background: C.surfaceAlt, border: 'none', cursor: 'pointer',
+          fontSize: 13.5, fontWeight: 700, color: C.texte,
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <span style={{ color: C.green, display: 'flex' }}><IEnvoi t={16} /></span>
+          {titre}
+        </span>
+        <span style={{ color: C.texteFaible, fontSize: 12 }}>{ouvert ? '▲' : '▼'}</span>
+      </button>
+
+      {ouvert && (
+        <div style={{ padding: '16px', background: '#fff' }}>
+          <Champ label="Destinataire principal" obligatoire>
+            <Input
+              type="email"
+              value={destinataire}
+              disabled={dis}
+              onChange={(e) => setDestinataire(e.target.value)}
+              placeholder="nom@innofaso.bf"
+            />
+          </Champ>
+
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: C.texteDoux, marginBottom: 6 }}>
+              Copie (CC)
+            </span>
+            {copies.map((c, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                <Input
+                  type="email"
+                  value={c}
+                  disabled={dis}
+                  onChange={(e) => majCopie(i, e.target.value)}
+                  placeholder="copie@innofaso.bf"
+                  style={{ flex: 1 }}
+                />
+                {!dis && copies.length > 1 && (
+                  <button
+                    onClick={() => retirerCopie(i)}
+                    style={{ background: C.rougeBg, border: '1px solid #f0cfcc', color: C.rouge, cursor: 'pointer', borderRadius: 6, padding: '7px 10px', fontSize: 12, fontWeight: 600 }}
+                  >
+                    Retirer
+                  </button>
+                )}
+              </div>
+            ))}
+            {!dis && (
+              <Btn variant="ghost" onClick={ajouterCopie}>
+                <IPlus t={14} /> Ajouter une copie
+              </Btn>
+            )}
+          </div>
+
+          <Champ label="Message (optionnel)">
+            <Textarea rows={2} value={message} disabled={dis} onChange={(e) => setMessage(e.target.value)} placeholder="Message accompagnant le transfert…" />
+          </Champ>
+
+          {resultat && (
+            <div style={{
+              padding: '9px 12px', borderRadius: 8, marginBottom: 12, fontSize: 13, fontWeight: 500,
+              background: resultat.ok ? C.greenBg : C.rougeBg, color: resultat.ok ? C.greenFonce : C.rouge,
+            }}>
+              {resultat.texte}
+            </div>
+          )}
+
+          <Btn variant="primary" disabled={enCours || dis} onClick={envoyer}>
+            <IEnvoi t={15} /> {enCours ? 'Envoi…' : `Transférer ${ncNumero ? `(${ncNumero})` : 'la fiche'}`}
+          </Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FicheNC({ ncId = null, services = [], onChangement }) {
   const [etape, setEtape] = useState(0);
   const [form, setForm] = useState(etatVide());
@@ -113,7 +270,19 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
     if (!ncId) return;
     api.obtenirNc(ncId).then((data) => {
       setNc(data);
-      setForm({ ...etatVide(), ...data, cloture: data.cloture || etatVide().cloture });
+      setForm(() => ({
+        ...etatVide(),
+        ...data,
+        refDocument: data.refDocument || REF_PAR_DEFAUT,
+        cloture: data.cloture || etatVide().cloture,
+        analyse: {
+          cinqM: { ...etatVide().analyse.cinqM, ...(data.analyse?.cinqM || {}) },
+          pourquoiParM: {
+            ...etatVide().analyse.pourquoiParM,
+            ...(data.analyse?.pourquoiParM || {}),
+          },
+        },
+      }));
     });
   }, [ncId]);
 
@@ -123,14 +292,37 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
   const setCloture = (cle, val) =>
     setForm((f) => ({ ...f, cloture: { ...f.cloture, [cle]: val } }));
 
+  // --- Gestion des lignes Pourquoi / Parce que par M -------------------------
+  const setLignePourquoi = (m, i, champKey, val) => {
+    setForm((f) => {
+      const lignes = [...(f.analyse.pourquoiParM?.[m] || [ligneVide()])];
+      lignes[i] = { ...lignes[i], [champKey]: val };
+      return { ...f, analyse: { ...f.analyse, pourquoiParM: { ...(f.analyse.pourquoiParM || {}), [m]: lignes } } };
+    });
+  };
+  const ajouterLignePourquoi = (m) => {
+    setForm((f) => {
+      const lignes = [...(f.analyse.pourquoiParM?.[m] || [ligneVide()]), ligneVide()];
+      return { ...f, analyse: { ...f.analyse, pourquoiParM: { ...(f.analyse.pourquoiParM || {}), [m]: lignes } } };
+    });
+  };
+  const retirerLignePourquoi = (m, i) => {
+    setForm((f) => {
+      const lignes = (f.analyse.pourquoiParM?.[m] || [ligneVide()]).filter((_, j) => j !== i);
+      return { ...f, analyse: { ...f.analyse, pourquoiParM: { ...(f.analyse.pourquoiParM || {}), [m]: lignes.length ? lignes : [ligneVide()] } } };
+    });
+  };
+
   const flash = (type, texte) => { setMsg({ type, texte }); setTimeout(() => setMsg(null), 4500); };
 
+  // Plus de brouillon : l'enregistrement crée ou met à jour directement la NC
+  // (création -> statut "ouverte" + assignation + alerte critique immédiates).
   const enregistrer = useCallback(async () => {
     setEnCours(true);
     try {
       const saved = nc?.id ? await api.majNc(nc.id, form) : await api.creerNc(form);
       setNc(saved);
-      flash('ok', `Brouillon enregistré — ${saved.numero}`);
+      flash('ok', nc?.id ? `Fiche mise à jour — ${saved.numero}` : `Fiche créée — ${saved.numero}`);
       onChangement?.();
       return saved;
     } catch (e) {
@@ -139,23 +331,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       setEnCours(false);
     }
   }, [nc, form, onChangement]);
-
-  const soumettre = async () => {
-    setEnCours(true);
-    try {
-      const saved = nc?.id ? await api.majNc(nc.id, form) : await api.creerNc(form);
-      const r = await api.soumettre(saved.id);
-      setNc(r.nc);
-      let t = `NC ${r.nc.numero} soumise. Pilote « ${r.nc.assigneA?.nom || '—'} » notifié.`;
-      if (r.alerte?.declenchee) t += ` Alerte critique RQ+DG envoyée en ${r.alerte.delaiMs} ms.`;
-      flash('ok', t);
-      onChangement?.();
-    } catch (e) {
-      flash('err', e.message);
-    } finally {
-      setEnCours(false);
-    }
-  };
 
   const faireTransition = async (action) => {
     setEnCours(true);
@@ -178,10 +353,11 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
   const etapes = [
     // Étape 1 — Identification
     <div key="e1">
-      <AideEtape etape={0} />
+      <AideEtape etape={0} refDocument={form.refDocument} dis={dis}
+        onChangeRef={(val) => set('refDocument', val)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Champ label="N° de fiche">
-          <Input value={nc?.numero || '— attribué à l\'enregistrement —'} disabled />
+          <Input value={nc?.numero || "— attribué à l'enregistrement —"} disabled />
         </Champ>
         <Champ label="Date / heure">
           <Input value={nc ? new Date(nc.creeLe).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR')} disabled />
@@ -202,11 +378,112 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       <Champ label="Description détaillée" aide="Faits constatés, conditions, lieu, date de constat, quantité concernée.">
         <Textarea rows={4} value={form.description} disabled={dis} onChange={(e) => set('description', e.target.value)} placeholder="Décrire les faits constatés, le contexte, les constats mesurables…" />
       </Champ>
+
+      {/* --- Bloc reproduisant la fiche papier "Non-conformité Produit / Service" --- */}
+      <div style={{ border: `1.5px solid ${C.borderFort}`, borderRadius: 10, padding: '16px 18px', marginTop: 22, background: '#fbfcfb' }}>
+        <h4 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700, color: C.texte, textDecoration: 'underline' }}>
+          Non-conformité Produit / Service
+        </h4>
+        <p style={{ margin: '0 0 14px', fontSize: 12.5, color: C.texteDoux }}>
+          Objet : renseigner tous les champs
+        </p>
+
+        {[
+          ['produit_fini_semi_fini', 'Produit Fini & Semi Fini'],
+          ['matiere_premiere', 'Matière Première'],
+          ['emballage', 'Emballage'],
+        ].map(([v, l]) => (
+          <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9, fontSize: 14, cursor: dis ? 'default' : 'pointer' }}>
+            <input
+              type="checkbox"
+              disabled={dis}
+              checked={form.sousType === v}
+              onChange={() => set('sousType', form.sousType === v ? '' : v)}
+              style={{ width: 17, height: 17, accentColor: C.green }}
+            />
+            {l}
+          </label>
+        ))}
+
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Champ label="Nom PF / Semi-fini / MP / Emballage">
+            <Input value={form.nomProduit} disabled={dis} onChange={(e) => set('nomProduit', e.target.value)} />
+          </Champ>
+          <Champ label="Fournisseur / Fabricant">
+            <Input value={form.fournisseur} disabled={dis} onChange={(e) => set('fournisseur', e.target.value)} />
+          </Champ>
+          <Champ label="N° de lot fournisseur">
+            <Input value={form.lotFournisseur} disabled={dis} onChange={(e) => set('lotFournisseur', e.target.value)} />
+          </Champ>
+          <Champ label="N° de lot interne">
+            <Input value={form.lotInterne} disabled={dis} onChange={(e) => set('lotInterne', e.target.value)} />
+          </Champ>
+          <Champ label="Quantité reçue / produite">
+            <Input value={form.quantiteRecue} disabled={dis} onChange={(e) => set('quantiteRecue', e.target.value)} />
+          </Champ>
+          <Champ label="Quantité en anomalie">
+            <Input value={form.quantiteAnomalie} disabled={dis} onChange={(e) => set('quantiteAnomalie', e.target.value)} />
+          </Champ>
+        </div>
+
+        <div style={{ marginTop: 16, borderTop: `1px dashed ${C.border}`, paddingTop: 14 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9, fontSize: 14, cursor: dis ? 'default' : 'pointer' }}>
+            <input
+              type="checkbox"
+              disabled={dis}
+              checked={form.sousType === 'service'}
+              onChange={() => set('sousType', form.sousType === 'service' ? '' : 'service')}
+              style={{ width: 17, height: 17, accentColor: C.green }}
+            />
+            Service (Préciser le système concerné)
+          </label>
+          {form.sousType === 'service' && (
+            <Input
+              value={form.serviceConcerne}
+              disabled={dis}
+              onChange={(e) => set('serviceConcerne', e.target.value)}
+              placeholder="Système concerné…"
+              style={{ marginBottom: 10 }}
+            />
+          )}
+
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 14, cursor: dis ? 'default' : 'pointer' }}>
+            <input
+              type="checkbox"
+              disabled={dis}
+              checked={form.sousType === 'autre'}
+              onChange={() => set('sousType', form.sousType === 'autre' ? '' : 'autre')}
+              style={{ width: 17, height: 17, accentColor: C.green, marginTop: 2 }}
+            />
+            <span>Autre (Nuisibles, Maintenance, Nettoyage, chaîne de froid, Production, Environnement…)</span>
+          </label>
+          {form.sousType === 'autre' && (
+            <Input
+              value={form.sousTypeAutrePrecision}
+              disabled={dis}
+              onChange={(e) => set('sousTypeAutrePrecision', e.target.value)}
+              placeholder="Préciser…"
+              style={{ marginTop: 10 }}
+            />
+          )}
+        </div>
+
+        <p style={{ textAlign: 'center', margin: '18px 0 0', fontSize: 15, fontWeight: 700, color: C.texte, fontStyle: 'italic' }}>
+          Automatique
+        </p>
+      </div>
+
+      <SectionTransfert
+        titre="Transférer la fiche par email (après identification)"
+        dis={dis}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
     </div>,
 
     // Étape 2 — Description NC
     <div key="e2">
-      <AideEtape etape={1} />
+      <AideEtape etape={1} refDocument={form.refDocument} dis={dis} />
       <Champ label="Type d'objet concerné" aide="Sélectionnez le type d'objet concerné par la non-conformité.">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           {TYPES_OBJET.map((t) => {
@@ -252,7 +529,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, background: C.rougeBg, border: `1px solid #f0cfcc`, borderRadius: 8, padding: '10px 13px' }}>
             <span style={{ color: C.rouge, display: 'flex', flexShrink: 0 }}><IAlerte t={16} /></span>
             <span style={{ fontSize: 12.5, color: C.rouge, lineHeight: 1.5 }}>
-              Une NC critique déclenche une alerte SMS immédiate au RQ et au DG dès la soumission (délai contractuel &lt; 30 s).
+              Une NC critique déclenche une alerte SMS/email immédiate au RQ et au DG dès la création (délai contractuel &lt; 30 s).
             </span>
           </div>
         )}
@@ -273,7 +550,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
 
     // Étape 3 — Action immédiate
     <div key="e3">
-      <AideEtape etape={2} />
+      <AideEtape etape={2} refDocument={form.refDocument} dis={dis} />
       <Champ label="Une action immédiate a-t-elle été menée ?" aide="Confinement, isolation, retrait, communication client…">
         <div style={{ display: 'flex', gap: 14 }}>
           {['oui', 'non'].map((o) => {
@@ -314,20 +591,20 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       </Champ>
     </div>,
 
-    // Étape 4 — Analyse 5M + 5 Pourquoi
+    // Étape 4 — Analyse 5M + 5 Pourquoi (Pourquoi / Parce que côte à côte)
     <div key="e4">
-      <AideEtape etape={3} />
+      <AideEtape etape={3} refDocument={form.refDocument} dis={dis} />
       <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ color: C.green, display: 'flex' }}><IDoc5M t={18} /></span>
         <span style={{ fontSize: 14, fontWeight: 700, color: C.texte }}>Diagramme Ishikawa — Méthode 5M</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {[
-          ['mainOeuvre', "Main d'œuvre", "Compétences, formation, comportement du personnel"],
-          ['methode', 'Méthode', "Procédures, instructions, modes opératoires"],
-          ['materiel', 'Matériel', "Machines, équipements, outillages, infrastructures"],
-          ['milieu', 'Milieu', "Environnement : température, humidité, bruit, espace"],
-          ['matiere', 'Matière', "Matières premières, composants, fournitures"],
+          ['mainOeuvre', "Main d'œuvre", 'Compétences, formation, comportement du personnel'],
+          ['methode', 'Méthode', 'Procédures, instructions, modes opératoires'],
+          ['materiel', 'Matériel', 'Machines, équipements, outillages, infrastructures'],
+          ['milieu', 'Milieu', 'Environnement : température, humidité, bruit, espace'],
+          ['matiere', 'Matière', 'Matières premières, composants, fournitures'],
         ].map(([k, l, aide]) => (
           <div key={k} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', background: '#fbfcfb' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -342,54 +619,74 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
                 onChange={(e) => setM(k, e.target.value)}
                 placeholder={`Cause liée à : ${l.toLowerCase()}…`} />
             </Champ>
+
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, color: C.texteDoux, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ color: C.green, display: 'flex' }}><IEclair t={14} /></span>
-                Pourquoi ? (remontée à la cause racine)
+                Méthode des 5 Pourquoi (remontée à la cause racine)
               </div>
-              {(form.analyse.pourquoiParM?.[k] || ['']).map((p, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: C.bgVoile, color: C.texteDoux, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
-                  <Input value={p} disabled={dis} style={{ flex: 1 }}
-                    onChange={(e) => {
-                      const arr = [...(form.analyse.pourquoiParM?.[k] || [''])];
-                      arr[i] = e.target.value;
-                      setForm((f) => ({ ...f, analyse: { ...f.analyse, pourquoiParM: { ...(f.analyse.pourquoiParM || {}), [k]: arr } } }));
-                    }}
-                    placeholder={i === 0 ? 'Parce que…' : '…parce que…'} />
-                  {!dis && (form.analyse.pourquoiParM?.[k] || ['']).length > 1 && (
-                    <button onClick={() => {
-                      const arr = (form.analyse.pourquoiParM?.[k] || ['']).filter((_, j) => j !== i);
-                      setForm((f) => ({ ...f, analyse: { ...f.analyse, pourquoiParM: { ...(f.analyse.pourquoiParM || {}), [k]: arr } } }));
-                    }} style={{ background: C.rougeBg, border: `1px solid #f0cfcc`, color: C.rouge, cursor: 'pointer', borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
-                      Retirer
-                    </button>
-                  )}
+
+              {(form.analyse.pourquoiParM?.[k] || [ligneVide()]).map((ligne, i) => (
+                <div key={i} style={{
+                  display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10,
+                  padding: '10px 12px', background: C.surfaceAlt, borderRadius: 8,
+                  border: `1px solid ${C.border}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <span style={{ width: 22, height: 22, borderRadius: '50%', background: C.greenBg, color: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.texteDoux }}>Itération {i + 1}</span>
+                    {!dis && (form.analyse.pourquoiParM?.[k] || []).length > 1 && (
+                      <button onClick={() => retirerLignePourquoi(k, i)} style={{ marginLeft: 'auto', background: C.rougeBg, border: `1px solid #f0cfcc`, color: C.rouge, cursor: 'pointer', borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
+                        Retirer
+                      </button>
+                    )}
+                  </div>
+                  <Champ label="Pourquoi ?">
+                    <Input
+                      value={ligne.pourquoi}
+                      disabled={dis}
+                      onChange={(e) => setLignePourquoi(k, i, 'pourquoi', e.target.value)}
+                      placeholder="Pourquoi ce problème est-il survenu ?"
+                    />
+                  </Champ>
+                  <Champ label="Parce que…">
+                    <Input
+                      value={ligne.parceque}
+                      disabled={dis}
+                      onChange={(e) => setLignePourquoi(k, i, 'parceque', e.target.value)}
+                      placeholder="Parce que…"
+                    />
+                  </Champ>
                 </div>
               ))}
+
               {!dis && (
-                <Btn variant="ghost" onClick={() => {
-                  const arr = [...(form.analyse.pourquoiParM?.[k] || ['']), ''];
-                  setForm((f) => ({ ...f, analyse: { ...f.analyse, pourquoiParM: { ...(f.analyse.pourquoiParM || {}), [k]: arr } } }));
-                }}>
-                  <IPlus t={14} /> Ajouter un pourquoi
+                <Btn variant="ghost" onClick={() => ajouterLignePourquoi(k)}>
+                  <IPlus t={14} /> Ajouter Pourquoi / Parce que
                 </Btn>
               )}
             </div>
           </div>
         ))}
       </div>
+
+      <SectionTransfert
+        titre="Transférer la fiche par email (après l'analyse 5 Pourquoi)"
+        dis={dis}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
     </div>,
 
     // Étape 5 — CAPA
     <div key="e5">
-      <AideEtape etape={4} />
+      <AideEtape etape={4} refDocument={form.refDocument} dis={dis} />
       <PlanCapa actions={form.capa.actions} disabled={dis} onChange={(actions) => set('capa', { actions })} />
     </div>,
 
     // Étape 6 — Vérification & Clôture
     <div key="e6">
-      <AideEtape etape={5} />
+      <AideEtape etape={5} refDocument={form.refDocument} dis={dis} />
       <Champ label="Preuves de mise en œuvre" aide="Documents joints, enregistrements, photos, rapports de contrôle.">
         <Textarea value={form.cloture.preuves} disabled={dis} onChange={(e) => setCloture('preuves', e.target.value)} placeholder="Ex. : rapport d'essais n°XX, photo machine après calibration…" />
       </Champ>
@@ -397,16 +694,30 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         <Select value={form.cloture.efficacite} disabled={dis} onChange={(e) => setCloture('efficacite', e.target.value)}>
           <option value="">— Évaluer l'efficacité —</option>
           <option value="Efficace">Efficace — la NC ne s'est pas reproduite</option>
-          <option value="Partiellement efficace">Partiellement efficace — amélioration observée mais insuffisante</option>
           <option value="Inefficace">Inefficace — la NC persiste, revoir les actions</option>
         </Select>
       </Champ>
+
+      <SectionTransfert
+        titre="Transférer la fiche par email (après évaluation de l'efficacité)"
+        dis={dis}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
+
       <Champ label="Mise à jour des risques / SMI" aide="Indiquer si la base de risques ou le SMI a été mis à jour suite à cette NC.">
         <Textarea value={form.cloture.majRisques} disabled={dis} onChange={(e) => setCloture('majRisques', e.target.value)} />
       </Champ>
       <Champ label="Signature du Responsable Qualité (RQ)" obligatoire>
         <Input value={form.cloture.signatureRQ} disabled={dis} onChange={(e) => setCloture('signatureRQ', e.target.value)} placeholder="Prénom NOM du Responsable Qualité" />
       </Champ>
+
+      <SectionTransfert
+        titre="Transférer la fiche par email (après clôture)"
+        dis={false}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
     </div>,
   ];
 
@@ -422,14 +733,14 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
               : 'Nouvelle fiche'}
           </h1>
           <p style={{ fontSize: 13, color: C.texteDoux, margin: '5px 0 0', fontFamily: C.policeMono }}>
-            Fiche de non-conformité · réf. PM-SM-EN-FNC-E
+            Fiche de non-conformité · réf. {form.refDocument || REF_PAR_DEFAUT}
           </p>
         </div>
         {nc && <BadgeStatut statut={nc.statut} />}
       </div>
 
       {/* Frise de statut */}
-      <Carte plat><FriseStatut statut={nc?.statut || 'brouillon'} /></Carte>
+      <Carte plat><FriseStatut statut={nc?.statut || 'ouverte'} /></Carte>
 
       {/* Indicateur de complétion */}
       <ResumeRapide nc={nc} form={form} />
@@ -459,7 +770,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
             border: `1px solid ${etape === i ? C.green : C.border}`,
             background: etape === i ? C.green : C.surface, color: etape === i ? '#fff' : C.texteDoux,
             transition: 'all .15s',
-          }}>{e.titre}</button>
+          }}>{i + 1}. {e.titre}</button>
         ))}
       </div>
 
@@ -469,7 +780,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       </div>
 
       {/* Contenu de l'étape */}
-      <Carte titre={ETAPES[etape].titre}>{etapes[etape]}</Carte>
+      <Carte titre={`${etape + 1}. ${ETAPES[etape].titre}`}>{etapes[etape]}</Carte>
 
       {/* Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
@@ -485,13 +796,8 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       <Carte titre="Actions sur la fiche">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {!verrouillee && (
-            <Btn variant="ghost" disabled={enCours} onClick={enregistrer}>
-              <IEnregistrer t={16} /> Enregistrer le brouillon
-            </Btn>
-          )}
-          {(!nc || dispo('soumettre')) && !verrouillee && (
-            <Btn variant="primary" disabled={enCours} onClick={soumettre}>
-              <IEnvoi t={16} /> Soumettre la fiche
+            <Btn variant="primary" disabled={enCours} onClick={enregistrer}>
+              <IEnregistrer t={16} /> {nc?.id ? 'Enregistrer les modifications' : 'Créer la fiche'}
             </Btn>
           )}
           {dispo('prendre_en_charge') && (

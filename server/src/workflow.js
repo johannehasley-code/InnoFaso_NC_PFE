@@ -1,18 +1,16 @@
 // ============================================================================
 //  workflow.js — Machine à états des Fiches de Non-Conformité (FNC)
-//  Cycle de vie : brouillon -> ouverte -> en_cours -> cloturee
+//  Cycle de vie : ouverte -> en_cours -> cloturee
 //  Verrouillage post-clôture : aucune transition ni édition possible.
 // ============================================================================
 
 export const STATUTS = {
-  BROUILLON: 'brouillon',
   OUVERTE: 'ouverte',
   EN_COURS: 'en_cours',
   CLOTUREE: 'cloturee',
 };
 
 export const LIBELLE_STATUT = {
-  brouillon: 'Brouillon',
   ouverte: 'Ouverte',
   en_cours: 'En cours',
   cloturee: 'Clôturée',
@@ -20,26 +18,13 @@ export const LIBELLE_STATUT = {
 
 // Ordre logique du cycle de vie (utilisé pour l'affichage de la frise).
 export const ORDRE_STATUTS = [
-  STATUTS.BROUILLON,
   STATUTS.OUVERTE,
   STATUTS.EN_COURS,
   STATUTS.CLOTUREE,
 ];
 
 // Définition des transitions autorisées : action -> {from, to, guard?}
-// Une transition n'est jouable que si le statut courant est dans `from`
-// et que le garde-fou éventuel renvoie true.
 export const TRANSITIONS = {
-  soumettre: {
-    from: [STATUTS.BROUILLON],
-    to: STATUTS.OUVERTE,
-    label: 'Soumettre la fiche',
-    // Une fiche soumise doit au minimum être identifiée.
-    guard: (nc) =>
-      Boolean(nc.intitule && nc.service && nc.emetteur),
-    guardMessage:
-      "L'intitulé, le service concerné et l'émetteur sont obligatoires avant soumission.",
-  },
   prendre_en_charge: {
     from: [STATUTS.OUVERTE],
     to: STATUTS.EN_COURS,
@@ -80,7 +65,6 @@ export class WorkflowError extends Error {
 }
 
 // Applique une transition. Retourne {nc, transition} ou lève WorkflowError.
-// NOTE : fonction PURE sur l'objet `nc` (renvoie une copie) — facilite les tests.
 export function appliquerTransition(nc, action, { par = 'système' } = {}) {
   const t = TRANSITIONS[action];
   if (!t) {

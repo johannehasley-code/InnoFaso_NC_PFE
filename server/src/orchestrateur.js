@@ -25,13 +25,15 @@ export class Orchestrateur {
     this.journalRappels = journalRappels;
   }
 
-  // Création d'une NC en statut brouillon.
+  // Création d'une NC : démarre directement en statut OUVERTE (pas de brouillon).
+  // Assigne immédiatement le pilote du service et déclenche l'alerte critique si besoin.
   async creerNc(donnees = {}, { par = 'émetteur' } = {}) {
     const maintenant = new Date().toISOString();
+    const origineMs = Date.now();
     const nc = {
       id: nouvelId(),
       numero: await this.store.genererNumero(),
-      statut: STATUTS.BROUILLON,
+      statut: STATUTS.OUVERTE,
       creeLe: maintenant,
       majLe: maintenant,
       // Identification
@@ -40,7 +42,7 @@ export class Orchestrateur {
       intitule: donnees.intitule || '',
       description: donnees.description || '',
       // Caractérisation
-      criticite: donnees.criticite || 'moyenne', // faible|moyenne|elevee|critique
+      criticite: donnees.criticite || 'moyenne',
       classification: donnees.classification || '',
       typeObjet: donnees.typeObjet || [],
       // Analyse / CAPA / clôture
@@ -50,10 +52,19 @@ export class Orchestrateur {
       // Affectation & traçabilité
       assigneA: null,
       historique: [
-        { de: null, vers: STATUTS.BROUILLON, action: 'creation', par, le: maintenant },
+        { de: null, vers: STATUTS.OUVERTE, action: 'creation', par, le: maintenant },
       ],
       evenements: [],
     };
+
+    const { assigne, evenements: evPilote, promesses } = assignerEtNotifierPilote(nc, { sms: this.sms });
+    nc.evenements.push(...evPilote);
+
+    const alerte = await alerterSiCritique(nc, { sms: this.sms, origineMs });
+    nc.evenements.push(...alerte.evenements);
+
+    await Promise.all(promesses);
+
     return this.store.ajouterNc(nc);
   }
 
@@ -73,33 +84,6 @@ export class Orchestrateur {
     }
     nc.majLe = new Date().toISOString();
     return this.store.remplacerNc(nc);
-  }
-
-  // SOUMISSION : brouillon -> ouverte, déclenche assignation + alerte critique.
-  // Retourne { nc, assignation, alerte } avec le délai d'alerte mesuré.
-  async soumettre(id, { par = 'émetteur' } = {}) {
-    let nc = await this.store.trouverNc(id);
-    if (!nc) throw new WorkflowError('NC introuvable.', 'INTROUVABLE');
-
-    const origineMs = Date.now(); // référence pour l'exigence des 30 s
-
-    // 1) Transition de statut (tracée).
-    const { nc: ncOuverte } = appliquerTransition(nc, 'soumettre', { par });
-    nc = ncOuverte;
-
-    // 2) Assignation automatique + notification du pilote du service.
-    const { assigne, evenements: evPilote, promesses } = assignerEtNotifierPilote(nc, { sms: this.sms });
-    nc.evenements.push(...evPilote);
-
-    // 3) Alerte SMS immédiate au RQ + DG si NC critique (< 30 s).
-    const alerte = await alerterSiCritique(nc, { sms: this.sms, origineMs });
-    nc.evenements.push(...alerte.evenements);
-
-    // On attend la notification pilote pour que son événement soit horodaté.
-    await Promise.all(promesses);
-
-    await this.store.remplacerNc(nc);
-    return { nc, assignation: { assigne }, alerte };
   }
 
   // Transition générique (prendre_en_charge, cloturer).

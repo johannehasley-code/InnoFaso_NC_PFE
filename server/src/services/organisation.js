@@ -2,7 +2,7 @@ export const SERVICES = {
   production: {
     code: 'production',
     libelle: 'Production',
-    pilote: { nom: 'OUEDRAOGO Adama', role: 'Pilote Production', tel: '+22670000001', email: 'johannehasleydiessongo@gmail.com' },
+    pilote: { nom: 'OUEDRAOGO Adama', role: 'Pilote Production', tel: '+22670000001', email: 'seraphin.yougbare@innofaso.com' },
   },
   qualite: {
     code: 'qualite',

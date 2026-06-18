@@ -49,7 +49,6 @@ export const C = {
 
 // Couleurs par statut du workflow.
 export const COULEUR_STATUT = {
-  brouillon: { fg: C.gris, bg: '#eef0ed', libelle: 'Brouillon' },
   ouverte: { fg: C.bleu, bg: C.bleuBg, libelle: 'Ouverte' },
   en_cours: { fg: C.orange, bg: C.orangeBg, libelle: 'En cours' },
   cloturee: { fg: C.greenFonce, bg: C.greenBg, libelle: 'Clôturée' },
