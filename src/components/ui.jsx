@@ -3,7 +3,7 @@ import { IBouclier } from './Icones.jsx';
 
 // --- Badges ----------------------------------------------------------------
 export function BadgeStatut({ statut }) {
-  const s = COULEUR_STATUT[statut] || COULEUR_STATUT.ouverte;
+  const s = COULEUR_STATUT[statut] || COULEUR_STATUT.brouillon;
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -180,3 +180,4 @@ export function Vide({ icone, titre, texte }) {
     </div>
   );
 }
+

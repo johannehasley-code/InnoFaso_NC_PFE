@@ -1,6 +1,6 @@
 import { C, COULEUR_STATUT } from '../lib/theme.js';
 
-const ORDRE = ['ouverte', 'en_cours', 'cloturee'];
+const ORDRE = ['brouillon', 'ouverte', 'en_cours', 'cloturee'];
 
 // Icône checkmark inline (évite un import circulaire ; même style que Icones.jsx).
 const CheckTick = () => (

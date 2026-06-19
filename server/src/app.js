@@ -63,6 +63,15 @@ export async function creerApp(deps = {}) {
     res.json(orch.infos(nc));
   }));
 
+  app.post('/api/nc/:id/soumettre', verifyToken, h(async (req, res) => {
+    const r = await orch.soumettre(req.params.id, { par: req.user?.email || 'émetteur' });
+    res.json({
+      nc: orch.infos(r.nc),
+      assignation: r.assignation,
+      alerte: { declenchee: r.alerte.declenchee, delaiMs: r.alerte.delaiMs, seuilMs: r.alerte.seuilMs },
+    });
+  }));
+
   app.post('/api/nc/:id/transition', verifyToken, h(async (req, res) => {
     const { action } = req.body || {};
     const r = await orch.transition(req.params.id, action, { par: req.user?.email || 'utilisateur' });
@@ -86,7 +95,8 @@ export async function creerApp(deps = {}) {
     const { destinataire, copies = [], message = '' } = req.body || {};
     if (!destinataire) return res.status(400).json({ erreur: 'Destinataire principal requis' });
 
-    const corps = `INNOFASO QUALITE — Transfert de la fiche ${nc.numero} (${nc.intitule || 'sans intitulé'}).\n${message}`;
+    const lienApplication = process.env.APP_URL || 'http://localhost:5173';
+    const corps = `INNOFASO QUALITE — Transfert de la fiche ${nc.numero}\nIntitulé : ${nc.intitule || 'Contrôle'}\n\nConsulter la fiche : ${lienApplication}\n\n${message}`;
     const tousDestinataires = [destinataire, ...copies.filter(Boolean)];
     const envois = await Promise.all(
       tousDestinataires.map((mail) =>

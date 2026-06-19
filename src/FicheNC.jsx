@@ -35,12 +35,15 @@ function etatVide() {
   return {
     refDocument: REF_PAR_DEFAUT,
     emetteur: '', service: '', intitule: '', description: '',
+    verifiePar: '', // --- Vérifié par (étape Identification) ---
     criticite: 'moyenne', classification: '', typeObjet: [],
-    exigence: '', consequences: '', risques: '',
-    actionImmediate: 'non', actionRealisee: '', realiseePar: '', verifiePar: '',
 
-    // --- Bloc "Non-conformité Produit / Service" (issu de la fiche papier) ---
-    sousType: '', // 'produit_fini_semi_fini' | 'matiere_premiere' | 'emballage' | 'service' | 'autre'
+    // --- Bloc Description (étape 2) ---
+    descriptionEtape: '',
+    preuveTangible: '',
+    preuveTangibleFichier: '', // nom de fichier simulé
+
+    sousType: '',
     nomProduit: '',
     fournisseur: '',
     lotFournisseur: '',
@@ -50,9 +53,11 @@ function etatVide() {
     serviceConcerne: '',
     sousTypeAutrePrecision: '',
 
+    exigence: '', consequences: '', risques: '',
+    actionImmediate: 'non', actionRealisee: '', realiseePar: '', verifiePar2: '',
+
     analyse: {
       cinqM: { mainOeuvre: '', methode: '', materiel: '', milieu: '', matiere: '' },
-      // pourquoiParM : { [m]: [{pourquoi, parceque}, ...] }
       pourquoiParM: {
         mainOeuvre: [ligneVide()],
         methode: [ligneVide()],
@@ -62,7 +67,8 @@ function etatVide() {
       },
     },
     capa: { actions: [] },
-    cloture: { preuves: '', efficacite: '', majRisques: '', signatureRQ: '' },
+    // cloture.parResponsable : { [index_action]: { realisation, fichier, decision, verifiePar } }
+    cloture: { preuves: '', efficacite: '', majRisques: '', signatureRQ: '', parResponsable: {}, verifieParActions: '' },
   };
 }
 
@@ -139,9 +145,38 @@ function ResumeRapide({ nc, form }) {
   );
 }
 
+// --- Zone d'upload simulée (stocke uniquement le nom du fichier) -----------
+function ZoneUpload({ label, valeur, disabled, onChange }) {
+  return (
+    <Champ label={label}>
+      <div style={{
+        border: `1.5px dashed ${C.borderFort}`, borderRadius: 8, padding: '12px 14px',
+        display: 'flex', alignItems: 'center', gap: 10, background: disabled ? C.surfaceAlt : '#fff',
+      }}>
+        <span style={{ color: C.texteFaible, display: 'flex', flexShrink: 0 }}><IDoc5M t={16} /></span>
+        <label style={{ flex: 1, cursor: disabled ? 'default' : 'pointer' }}>
+          <input
+            type="file"
+            disabled={disabled}
+            style={{ display: 'none' }}
+            onChange={(e) => onChange(e.target.files?.[0]?.name || '')}
+          />
+          <span style={{ fontSize: 13, color: valeur ? C.texte : C.texteFaible }}>
+            {valeur || 'Choisir un fichier à joindre…'}
+          </span>
+        </label>
+        {valeur && !disabled && (
+          <button onClick={() => onChange('')} style={{
+            background: C.rougeBg, border: `1px solid #f0cfcc`, color: C.rouge,
+            cursor: 'pointer', borderRadius: 6, padding: '3px 9px', fontSize: 11.5, fontWeight: 600,
+          }}>Retirer</button>
+        )}
+      </div>
+    </Champ>
+  );
+}
+
 // --- Section transfert par email (principal + copies) -----------------------
-// Apparaît à 4 endroits de la fiche : après identification, après 5 pourquoi,
-// après évaluation d'efficacité, après clôture.
 function SectionTransfert({ titre, dis, ncId, ncNumero, onTransfere }) {
   const [ouvert, setOuvert] = useState(false);
   const [destinataire, setDestinataire] = useState('');
@@ -274,7 +309,11 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         ...etatVide(),
         ...data,
         refDocument: data.refDocument || REF_PAR_DEFAUT,
-        cloture: data.cloture || etatVide().cloture,
+        cloture: {
+          ...etatVide().cloture,
+          ...(data.cloture || {}),
+          parResponsable: { ...(data.cloture?.parResponsable || {}) },
+        },
         analyse: {
           cinqM: { ...etatVide().analyse.cinqM, ...(data.analyse?.cinqM || {}) },
           pourquoiParM: {
@@ -291,6 +330,17 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
     setForm((f) => ({ ...f, analyse: { ...f.analyse, cinqM: { ...f.analyse.cinqM, [cle]: val } } }));
   const setCloture = (cle, val) =>
     setForm((f) => ({ ...f, cloture: { ...f.cloture, [cle]: val } }));
+  const setParResponsable = (idx, champKey, val) =>
+    setForm((f) => ({
+      ...f,
+      cloture: {
+        ...f.cloture,
+        parResponsable: {
+          ...f.cloture.parResponsable,
+          [idx]: { ...(f.cloture.parResponsable[idx] || {}), [champKey]: val },
+        },
+      },
+    }));
 
   // --- Gestion des lignes Pourquoi / Parce que par M -------------------------
   const setLignePourquoi = (m, i, champKey, val) => {
@@ -315,14 +365,12 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
 
   const flash = (type, texte) => { setMsg({ type, texte }); setTimeout(() => setMsg(null), 4500); };
 
-  // Plus de brouillon : l'enregistrement crée ou met à jour directement la NC
-  // (création -> statut "ouverte" + assignation + alerte critique immédiates).
   const enregistrer = useCallback(async () => {
     setEnCours(true);
     try {
       const saved = nc?.id ? await api.majNc(nc.id, form) : await api.creerNc(form);
       setNc(saved);
-      flash('ok', nc?.id ? `Fiche mise à jour — ${saved.numero}` : `Fiche créée — ${saved.numero}`);
+      flash('ok', `Brouillon enregistré — ${saved.numero}`);
       onChangement?.();
       return saved;
     } catch (e) {
@@ -331,6 +379,23 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       setEnCours(false);
     }
   }, [nc, form, onChangement]);
+
+  const soumettre = async () => {
+    setEnCours(true);
+    try {
+      const saved = nc?.id ? await api.majNc(nc.id, form) : await api.creerNc(form);
+      const r = await api.soumettre(saved.id);
+      setNc(r.nc);
+      let texte = `NC ${r.nc.numero} soumise. Pilote « ${r.nc.assigneA?.nom || '—'} » notifié.`;
+      if (r.alerte?.declenchee) texte += ` Alerte critique RQ+DG envoyée en ${r.alerte.delaiMs} ms.`;
+      flash('ok', texte);
+      onChangement?.();
+    } catch (e) {
+      flash('err', e.message);
+    } finally {
+      setEnCours(false);
+    }
+  };
 
   const faireTransition = async (action) => {
     setEnCours(true);
@@ -348,6 +413,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
   };
 
   const dis = verrouillee;
+  const actionsCapa = form.capa.actions || [];
 
   // --- Contenu de chaque étape -----------------------------------------------
   const etapes = [
@@ -374,9 +440,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       </div>
       <Champ label="Intitulé de la non-conformité" obligatoire aide="Une phrase courte décrivant clairement la NC (ex. : « Lot B-042 hors tolérance »).">
         <Input value={form.intitule} disabled={dis} onChange={(e) => set('intitule', e.target.value)} placeholder="Résumé en une ligne" />
-      </Champ>
-      <Champ label="Description détaillée" aide="Faits constatés, conditions, lieu, date de constat, quantité concernée.">
-        <Textarea rows={4} value={form.description} disabled={dis} onChange={(e) => set('description', e.target.value)} placeholder="Décrire les faits constatés, le contexte, les constats mesurables…" />
       </Champ>
 
       {/* --- Bloc reproduisant la fiche papier "Non-conformité Produit / Service" --- */}
@@ -473,17 +536,36 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         </p>
       </div>
 
-      <SectionTransfert
-        titre="Transférer la fiche par email (après identification)"
-        dis={dis}
-        ncId={nc?.id}
-        ncNumero={nc?.numero}
-      />
+      <Champ label="Vérifié par" obligatoire aide="Nom et prénom de la personne ayant vérifié l'identification de la non-conformité.">
+        <Input value={form.verifiePar} disabled={dis} onChange={(e) => set('verifiePar', e.target.value)} placeholder="Prénom NOM" />
+      </Champ>
     </div>,
 
-    // Étape 2 — Description NC
+    // Étape 2 — Description
     <div key="e2">
       <AideEtape etape={1} refDocument={form.refDocument} dis={dis} />
+
+      {/* --- Nouveau bloc Description (étape, preuve tangible + upload) --- */}
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px', marginBottom: 20, background: '#fbfcfb' }}>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: C.texte }}>Description</h4>
+        <Champ label="Étape" aide="Décrire le moment / l'étape du processus où la non-conformité a été constatée.">
+          <Textarea rows={3} value={form.descriptionEtape} disabled={dis} onChange={(e) => set('descriptionEtape', e.target.value)} placeholder="Ex. : contrôle réception, étape d'emballage, contrôle final…" />
+        </Champ>
+        <Champ label="Preuve tangible" aide="Constat factuel justifiant la non-conformité (mesure, observation, écart relevé).">
+          <Textarea rows={3} value={form.preuveTangible} disabled={dis} onChange={(e) => set('preuveTangible', e.target.value)} placeholder="Décrire la preuve tangible constatée…" />
+        </Champ>
+        <ZoneUpload
+          label="Pièce jointe — preuve tangible"
+          valeur={form.preuveTangibleFichier}
+          disabled={dis}
+          onChange={(nomFichier) => set('preuveTangibleFichier', nomFichier)}
+        />
+      </div>
+
+      <Champ label="Description détaillée" aide="Faits constatés, conditions, lieu, date de constat, quantité concernée.">
+        <Textarea rows={4} value={form.description} disabled={dis} onChange={(e) => set('description', e.target.value)} placeholder="Décrire les faits constatés, le contexte, les constats mesurables…" />
+      </Champ>
+
       <Champ label="Type d'objet concerné" aide="Sélectionnez le type d'objet concerné par la non-conformité.">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           {TYPES_OBJET.map((t) => {
@@ -529,7 +611,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, marginTop: 10, background: C.rougeBg, border: `1px solid #f0cfcc`, borderRadius: 8, padding: '10px 13px' }}>
             <span style={{ color: C.rouge, display: 'flex', flexShrink: 0 }}><IAlerte t={16} /></span>
             <span style={{ fontSize: 12.5, color: C.rouge, lineHeight: 1.5 }}>
-              Une NC critique déclenche une alerte SMS/email immédiate au RQ et au DG dès la création (délai contractuel &lt; 30 s).
+              Une NC critique déclenche une alerte SMS/email immédiate au RQ et au DG dès la soumission (délai contractuel &lt; 30 s).
             </span>
           </div>
         )}
@@ -546,6 +628,14 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       <Champ label="Risques associés" aide="Risques potentiels si la NC n'est pas traitée.">
         <Textarea value={form.risques} disabled={dis} onChange={(e) => set('risques', e.target.value)} />
       </Champ>
+
+      {/* --- Section transfert déplacée ici, après la description --- */}
+      <SectionTransfert
+        titre="Transférer la fiche par email (après la description)"
+        dis={dis}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
     </div>,
 
     // Étape 3 — Action immédiate
@@ -577,7 +667,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           </Champ>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Champ label="Réalisée par"><Input value={form.realiseePar} disabled={dis} onChange={(e) => set('realiseePar', e.target.value)} placeholder="Prénom NOM" /></Champ>
-            <Champ label="Vérifiée par"><Input value={form.verifiePar} disabled={dis} onChange={(e) => set('verifiePar', e.target.value)} placeholder="Prénom NOM" /></Champ>
+            <Champ label="Vérifiée par"><Input value={form.verifiePar2} disabled={dis} onChange={(e) => set('verifiePar2', e.target.value)} placeholder="Prénom NOM" /></Champ>
           </div>
         </>
       )}
@@ -669,27 +759,99 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           </div>
         ))}
       </div>
-
-      <SectionTransfert
-        titre="Transférer la fiche par email (après l'analyse 5 Pourquoi)"
-        dis={dis}
-        ncId={nc?.id}
-        ncNumero={nc?.numero}
-      />
     </div>,
 
     // Étape 5 — CAPA
     <div key="e5">
       <AideEtape etape={4} refDocument={form.refDocument} dis={dis} />
       <PlanCapa actions={form.capa.actions} disabled={dis} onChange={(actions) => set('capa', { actions })} />
+
+      {/* --- Section transfert déplacée ici, après les actions correctives --- */}
+      <SectionTransfert
+        titre="Transférer la fiche par email (après les actions correctives)"
+        dis={dis}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
     </div>,
 
     // Étape 6 — Vérification & Clôture
     <div key="e6">
       <AideEtape etape={5} refDocument={form.refDocument} dis={dis} />
-      <Champ label="Preuves de mise en œuvre" aide="Documents joints, enregistrements, photos, rapports de contrôle.">
-        <Textarea value={form.cloture.preuves} disabled={dis} onChange={(e) => setCloture('preuves', e.target.value)} placeholder="Ex. : rapport d'essais n°XX, photo machine après calibration…" />
-      </Champ>
+
+      {/* --- Preuves de mise en œuvre personnalisées par responsable CAPA --- */}
+      <div style={{ marginBottom: 22 }}>
+        <h4 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700, color: C.texte }}>
+          Preuves de mise en œuvre des actions correctives
+        </h4>
+        <p style={{ margin: '0 0 14px', fontSize: 12.5, color: C.texteDoux }}>
+          Une section par responsable assigné à une action corrective (étape Plans CAPA).
+        </p>
+
+        {actionsCapa.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '24px 18px', background: C.surfaceAlt, borderRadius: 10, color: C.texteFaible, fontSize: 13 }}>
+            Aucune action corrective définie à l'étape « Plans CAPA ».
+          </div>
+        )}
+
+        {actionsCapa.map((action, idx) => {
+          const resp = action.responsable?.nom || `Responsable ${idx + 1}`;
+          const valeurs = form.cloture.parResponsable[idx] || {};
+          return (
+            <div key={idx} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px', marginBottom: 14, background: '#fbfcfb' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 12 }}>
+                <span style={{ width: 26, height: 26, borderRadius: '50%', background: C.greenBg, color: C.green, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{idx + 1}</span>
+                <div>
+                  <strong style={{ fontSize: 13.5, color: C.texte }}>{resp}</strong>
+                  <div style={{ fontSize: 12, color: C.texteFaible }}>{action.libelle || 'Action corrective'}</div>
+                </div>
+              </div>
+
+              <Champ label="Action réalisée" aide="Description de l'action effectivement mise en œuvre par le responsable.">
+                <Textarea rows={2} value={valeurs.realisation || ''} disabled={dis}
+                  onChange={(e) => setParResponsable(idx, 'realisation', e.target.value)}
+                  placeholder="Décrire l'action réalisée…" />
+              </Champ>
+
+              <ZoneUpload
+                label="Document justificatif"
+                valeur={valeurs.fichier || ''}
+                disabled={dis}
+                onChange={(nomFichier) => setParResponsable(idx, 'fichier', nomFichier)}
+              />
+
+              <Champ label="Décision">
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[['accepte', 'Accepter', C.greenFonce, C.greenBg], ['rejete', 'Rejeter', C.rouge, C.rougeBg]].map(([v, l, coul, fond]) => {
+                    const sel = valeurs.decision === v;
+                    return (
+                      <label key={v} style={{
+                        flex: 1, textAlign: 'center', padding: '9px 10px',
+                        border: `2px solid ${sel ? coul : C.border}`, borderRadius: 8,
+                        cursor: dis ? 'default' : 'pointer', fontWeight: 700, fontSize: 12.5,
+                        background: sel ? fond : '#fff', color: sel ? coul : C.texteDoux,
+                      }}>
+                        <input type="radio" name={`decision-${idx}`} disabled={dis} checked={sel}
+                          onChange={() => setParResponsable(idx, 'decision', v)} style={{ display: 'none' }} />
+                        {l}
+                      </label>
+                    );
+                  })}
+                </div>
+              </Champ>
+            </div>
+          );
+        })}
+
+        {actionsCapa.length > 0 && (
+          <Champ label="Vérifié par" aide="Une seule vérification globale pour l'ensemble des actions correctives ci-dessus.">
+            <Input value={form.cloture.verifieParActions || ''} disabled={dis}
+              onChange={(e) => setCloture('verifieParActions', e.target.value)}
+              placeholder="Prénom NOM" />
+          </Champ>
+        )}
+      </div>
+
       <Champ label="Vérification d'efficacité" obligatoire aide="L'évaluation doit être faite après un délai suffisant pour constater l'effet des actions.">
         <Select value={form.cloture.efficacite} disabled={dis} onChange={(e) => setCloture('efficacite', e.target.value)}>
           <option value="">— Évaluer l'efficacité —</option>
@@ -724,7 +886,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
   return (
     <div className="apparition" style={{ maxWidth: 880, margin: '0 auto', padding: 'clamp(20px,4vw,32px) clamp(16px,4vw,40px) 70px' }}>
 
-      {/* En-tête */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, gap: 14, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: 'clamp(19px,2.6vw,23px)', fontWeight: 700, color: C.texte, margin: 0, letterSpacing: '-.01em' }}>
@@ -739,13 +900,10 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         {nc && <BadgeStatut statut={nc.statut} />}
       </div>
 
-      {/* Frise de statut */}
-      <Carte plat><FriseStatut statut={nc?.statut || 'ouverte'} /></Carte>
+      <Carte plat><FriseStatut statut={nc?.statut || 'brouillon'} /></Carte>
 
-      {/* Indicateur de complétion */}
       <ResumeRapide nc={nc} form={form} />
 
-      {/* Notifications */}
       {msg && (
         <div style={{ padding: '11px 15px', borderRadius: 10, marginBottom: 16, fontSize: 13.5, fontWeight: 500,
           background: msg.type === 'ok' ? C.greenBg : C.rougeBg, color: msg.type === 'ok' ? C.greenFonce : C.rouge,
@@ -755,14 +913,12 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         </div>
       )}
 
-      {/* Verrou */}
       {verrouillee && (
         <div style={{ padding: '11px 15px', borderRadius: 10, marginBottom: 16, fontSize: 13.5, background: C.greenBg, color: C.greenFonce, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 9, border: `1px solid ${C.greenBord}` }}>
           <ICadenas t={17} /> Fiche clôturée et verrouillée — consultation en lecture seule.
         </div>
       )}
 
-      {/* Onglets d'étapes */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
         {ETAPES.map((e, i) => (
           <button key={e.titre} onClick={() => setEtape(i)} style={{
@@ -774,15 +930,12 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         ))}
       </div>
 
-      {/* Barre de progression */}
       <div style={{ height: 5, background: C.bgVoile, borderRadius: 4, marginBottom: 22, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${((etape + 1) / ETAPES.length) * 100}%`, background: `linear-gradient(90deg,${C.green},${C.greenFonce})`, transition: 'width .3s', borderRadius: 4 }} />
       </div>
 
-      {/* Contenu de l'étape */}
       <Carte titre={`${etape + 1}. ${ETAPES[etape].titre}`}>{etapes[etape]}</Carte>
 
-      {/* Navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <Btn variant="ghost" disabled={etape === 0} onClick={() => setEtape((s) => s - 1)}>
           <IRetour t={16} /> Précédent
@@ -792,12 +945,16 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         </Btn>
       </div>
 
-      {/* Actions workflow */}
       <Carte titre="Actions sur la fiche">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           {!verrouillee && (
-            <Btn variant="primary" disabled={enCours} onClick={enregistrer}>
-              <IEnregistrer t={16} /> {nc?.id ? 'Enregistrer les modifications' : 'Créer la fiche'}
+            <Btn variant="ghost" disabled={enCours} onClick={enregistrer}>
+              <IEnregistrer t={16} /> Enregistrer le brouillon
+            </Btn>
+          )}
+          {(!nc || dispo('soumettre')) && !verrouillee && (
+            <Btn variant="primary" disabled={enCours} onClick={soumettre}>
+              <IEnvoi t={16} /> Soumettre la fiche
             </Btn>
           )}
           {dispo('prendre_en_charge') && (
