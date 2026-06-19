@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { C } from '../lib/theme.js';
 import { IBouclier, IHorloge } from '../components/Icones.jsx';
+import fondQualite from '../assets/fond-controle-qualite.jpg';
 
 const REDIRECTS = {
   operateur:           '/',
@@ -50,10 +51,22 @@ export default function Login() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', fontFamily: C.police,
-      background: `linear-gradient(135deg, ${C.greenEncreuse} 0%, ${C.green} 100%)` }}>
+      justifyContent: 'center', fontFamily: C.police, position: 'relative', overflow: 'hidden' }}>
 
-      <div style={{ background: '#fff', borderRadius: C.rGrand, padding: '40px 36px',
+      {/* Photo de fond */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: `url(${fondQualite})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }} />
+
+      {/* Calque vert Innofaso semi-transparent par-dessus la photo */}
+      <div style={{
+        position: 'absolute', inset: 0,
+       background: `linear-gradient(135deg, ${C.greenEncreuse}80 0%, ${C.green}66 100%)`,
+      }} />
+
+      <div style={{ position: 'relative', zIndex: 1, background: '#fff', borderRadius: C.rGrand, padding: '40px 36px',
         width: '100%', maxWidth: 420, boxShadow: C.ombreFort }}>
 
         {/* Logo */}

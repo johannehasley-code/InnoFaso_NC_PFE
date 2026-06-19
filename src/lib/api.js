@@ -199,6 +199,15 @@ export const api = {
   }),
   transfererFiche: (id, payload) =>
     req(`/nc/${id}/transferer`, { method: 'POST', body: JSON.stringify(payload) }),
+  listerColonnesPerso: ()              => req('/colonnes-perso'),
+  creerColonnePerso:   (d)             => req('/colonnes-perso', { method: 'POST', body: JSON.stringify(d) }),
+  supprimerColonnePerso: (id)          => req(`/colonnes-perso/${id}`, { method: 'DELETE' }),
+  majValeursPerso:     (ncId, valeurs) => req(`/nc/${ncId}/valeurs-perso`, {
+    method: 'PUT',
+    body: JSON.stringify({ valeurs }),
+  }),
+ 
+
 };
 
 // ── Auth ─────────────────────────────────────────────

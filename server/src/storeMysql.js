@@ -77,26 +77,68 @@ export class StoreMysql {
       `INSERT INTO nc
         (id, numero, statut, cree_le, maj_le, emetteur, service, intitule,
          description, criticite, classification, type_objet, analyse, capa,
-         cloture, assigne_a, historique, evenements)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         cloture, assigne_a, historique, evenements, valeurs_perso)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ncVersParams(nc),
     );
     return nc;
   }
 
-  async remplacerNc(ncMaj) {
+   async remplacerNc(ncMaj) {
     const [res] = await this.pool.query(
       `UPDATE nc SET
         numero=?, statut=?, cree_le=?, maj_le=?, emetteur=?, service=?,
         intitule=?, description=?, criticite=?, classification=?,
         type_objet=?, analyse=?, capa=?, cloture=?, assigne_a=?,
-        historique=?, evenements=?
+        historique=?, evenements=?, valeurs_perso=?
        WHERE id=?`,
       [...ncVersParams(ncMaj).slice(1), ncMaj.id],
     );
     return res.affectedRows ? ncMaj : null;
   }
 
+  
+  async listerColonnesPerso() {
+    const [rows] = await this.pool.query(
+      'SELECT * FROM colonnes_personnalisees ORDER BY ordre ASC, cree_le ASC',
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      cle: r.cle,
+      libelle: r.libelle,
+      type: r.type,
+      ordre: r.ordre,
+      creePar: r.cree_par,
+      creeLe: new Date(r.cree_le).toISOString(),
+    }));
+  }
+ 
+  async ajouterColonnePerso(colonne) {
+    await this.pool.query(
+      `INSERT INTO colonnes_personnalisees (id, cle, libelle, type, ordre, cree_par)
+       VALUES (?,?,?,?,?,?)`,
+      [colonne.id, colonne.cle, colonne.libelle, colonne.type || 'texte',
+       colonne.ordre || 0, colonne.creePar || null],
+    );
+    return colonne;
+  }
+ 
+  async supprimerColonnePerso(id) {
+    const [res] = await this.pool.query(
+      'DELETE FROM colonnes_personnalisees WHERE id = ?', [id],
+    );
+    return res.affectedRows > 0;
+  }
+ 
+  async majValeursPerso(ncId, valeurs) {
+    const [res] = await this.pool.query(
+      'UPDATE nc SET valeurs_perso = ? WHERE id = ?',
+      [JSON.stringify(valeurs), ncId],
+    );
+    if (!res.affectedRows) return null;
+    return this.trouverNc(ncId);
+  }
+ 
   async fermer() {
     if (this.pool) await this.pool.end();
   }
@@ -106,6 +148,7 @@ export class StoreMysql {
 
 const dt = (iso) => new Date(iso).toISOString().slice(0, 23).replace('T', ' ');
 const j = (v) => JSON.stringify(v ?? null);
+
 
 function ncVersParams(nc) {
   return [
@@ -127,9 +170,9 @@ function ncVersParams(nc) {
     j(nc.assigneA || null),
     j(nc.historique || []),
     j(nc.evenements || []),
+    j(nc.valeursPerso || {}),
   ];
 }
-
 // mysql2 renvoie les colonnes JSON déjà parsées (objets) ; on gère les deux cas.
 const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 
@@ -153,5 +196,7 @@ function ligneVersNc(r) {
     assigneA: parse(r.assigne_a),
     historique: parse(r.historique) || [],
     evenements: parse(r.evenements) || [],
+    valeursPerso: parse(r.valeurs_perso) || {},
   };
 }
+ 

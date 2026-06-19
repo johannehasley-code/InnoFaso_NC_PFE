@@ -7,7 +7,10 @@ import {
   IRetour, IFleche, IEnregistrer, IEnvoi, ILecture, ICheck, ICadenas,
   IPlus, IAlerte, IDoc5M, ICalendrier, IUser, IHorloge, IEclair,
 } from './components/Icones.jsx';
+import BoutonIA from './components/BoutonIA.jsx';
 
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
+console.log('Clé Groq:', GROQ_API_KEY);
 const REF_PAR_DEFAUT = 'PM-SM-EN-FNC-E';
 
 const ETAPES = [
@@ -349,6 +352,18 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
 
   const dis = verrouillee;
 
+  // Bandeau config IA manquante — visible uniquement si VITE_GROQ_API_KEY absent
+  const bandeauGroqManquant = !GROQ_API_KEY && (
+    <div style={{
+      padding: '9px 14px', borderRadius: 8, marginBottom: 14, fontSize: 12.5,
+      background: '#fbf0e2', color: '#a85b00',
+      border: '1px solid #e8c88a', display: 'flex', alignItems: 'center', gap: 9,
+    }}>
+      ⚠ Clé Groq non configurée — créez un fichier <code>.env</code> à la racine et ajoutez :{' '}
+      <code>VITE_GROQ_API_KEY=gsk_…</code>
+    </div>
+  );
+
   // --- Contenu de chaque étape -----------------------------------------------
   const etapes = [
     // Étape 1 — Identification
@@ -650,12 +665,28 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
                     />
                   </Champ>
                   <Champ label="Parce que…">
-                    <Input
-                      value={ligne.parceque}
-                      disabled={dis}
-                      onChange={(e) => setLignePourquoi(k, i, 'parceque', e.target.value)}
-                      placeholder="Parce que…"
-                    />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <Input
+                        value={ligne.parceque}
+                        disabled={dis}
+                        onChange={(e) => setLignePourquoi(k, i, 'parceque', e.target.value)}
+                        placeholder="Parce que… (ou cliquez sur ✦ Suggérer pour une proposition IA)"
+                        style={{ flex: 1 }}
+                      />
+                      {!dis && (
+                        <BoutonIA
+                          pourquoi={ligne.pourquoi}
+                          causeM={form.analyse.cinqM[k]}
+                          axeM={k}
+                          iteration={i + 1}
+                          historiqueIterations={form.analyse.pourquoiParM?.[k] || []}
+                          form={form}
+                          onSuggestion={(suggestion) => setLignePourquoi(k, i, 'parceque', suggestion)}
+                          disabled={dis}
+                          apiKey={GROQ_API_KEY}
+                        />
+                      )}
+                    </div>
                   </Champ>
                 </div>
               ))}
@@ -761,6 +792,9 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           <ICadenas t={17} /> Fiche clôturée et verrouillée — consultation en lecture seule.
         </div>
       )}
+
+      {/* Bandeau config IA */}
+      {bandeauGroqManquant}
 
       {/* Onglets d'étapes */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>

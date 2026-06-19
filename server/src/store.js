@@ -27,6 +27,7 @@ export class StoreMemoire {
   constructor() {
     this.ncs = [];
     this.compteur = 0;
+    this.colonnesPerso = []; 
   }
 
   async init() { return this; }
@@ -57,6 +58,31 @@ export class StoreMemoire {
     if (i === -1) return null;
     this.ncs[i] = structuredClone(ncMaj);
     return structuredClone(ncMaj);
+  }
+
+   
+  async listerColonnesPerso() {
+    return (this.colonnesPerso || []).map((c) => structuredClone(c));
+  }
+ 
+  async ajouterColonnePerso(colonne) {
+    if (!this.colonnesPerso) this.colonnesPerso = [];
+    this.colonnesPerso.push(structuredClone(colonne));
+    return structuredClone(colonne);
+  }
+ 
+  async supprimerColonnePerso(id) {
+    if (!this.colonnesPerso) return false;
+    const avant = this.colonnesPerso.length;
+    this.colonnesPerso = this.colonnesPerso.filter((c) => c.id !== id);
+    return this.colonnesPerso.length < avant;
+  }
+ 
+  async majValeursPerso(ncId, valeurs) {
+    const i = this.ncs.findIndex((n) => n.id === ncId);
+    if (i === -1) return null;
+    this.ncs[i] = { ...this.ncs[i], valeursPerso: structuredClone(valeurs) };
+    return structuredClone(this.ncs[i]);
   }
 
   async fermer() { /* rien à fermer en mémoire */ }

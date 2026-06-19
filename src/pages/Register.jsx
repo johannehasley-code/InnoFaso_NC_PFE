@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../lib/api.js';
 import { C } from '../lib/theme.js';
 import { IBouclier, ICheck, IAlerte, IUser } from '../components/Icones.jsx';
+import fondQualite from '../assets/fond-controle-qualite.jpg';
 
 const SERVICES = ['Production','Qualité / SMI','Logistique','Maintenance',
   'Commercial','Direction','Informatique','RH','Finance','Autre'];
@@ -23,6 +24,21 @@ const IEye = ({ open }) => (
       : <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10 10 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></>
     }
   </svg>
+);
+
+// Calques communs : photo de fond + voile vert Innofaso semi-transparent.
+const FondPhoto = () => (
+  <>
+    <div style={{
+      position: 'absolute', inset: 0,
+      backgroundImage: `url(${fondQualite})`,
+      backgroundSize: 'cover', backgroundPosition: 'center',
+    }} />
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: `linear-gradient(135deg, ${C.greenEncreuse}80 0%, ${C.green}66 100%)`,
+    }} />
+  </>
 );
 
 export default function Register() {
@@ -77,6 +93,7 @@ export default function Register() {
   // Écran succès
   if (success) return (
     <div style={BG}>
+      <FondPhoto />
       <div style={{ ...CARD, textAlign: 'center', padding: '48px 36px' }}>
         <div style={{ color: C.green, display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
           <ICheck t={56} />
@@ -101,6 +118,7 @@ export default function Register() {
 
   return (
     <div style={BG}>
+      <FondPhoto />
       <div style={CARD}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
@@ -223,10 +241,9 @@ const F = ({ label, children }) => (
   </div>
 );
 
-const BG   = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-               padding: 20, fontFamily: C.police,
-               background: `linear-gradient(135deg,${C.greenEncreuse} 0%,${C.green} 100%)` };
-const CARD = { background: '#fff', borderRadius: C.rGrand, padding: '36px 32px',
+const BG = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+               padding: 20, fontFamily: C.police, position: 'relative', overflow: 'hidden' };
+const CARD = { position: 'relative', zIndex: 1, background: '#fff', borderRadius: C.rGrand, padding: '36px 32px',
                width: '100%', maxWidth: 480, boxShadow: C.ombreFort };
 const INP  = { padding: '9px 12px', border: `1.5px solid ${C.borderFort}`, borderRadius: 8,
                fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box',
