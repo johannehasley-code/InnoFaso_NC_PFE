@@ -1,187 +1,9 @@
-// // src/pages/NcList.jsx
-// import { useState, useEffect } from 'react';
-// import { C } from '../lib/theme.js';
-// import { api } from '../lib/api.js';
-// import { Carte, Btn, BadgeStatut, BadgeCriticite } from '../components/ui.jsx';
-// import { IFiche, IPlus, IRecherche, IRetour } from '../components/Icones.jsx';
-
-// export default function NcList({ onOuvrir, onNouveau }) {
-//   const [ncs,     setNcs]     = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [filters, setFilters] = useState({ statut: '', criticite: '' });
-
-//   const load = async () => {
-//     setLoading(true);
-//     try { const data = await api.listerNc(); setNcs(data); }
-//     catch { setNcs([]); }
-//     finally { setLoading(false); }
-//   };
-
-//   useEffect(() => { load(); }, []);
-
-//   const ncsFiltrees = ncs.filter(nc =>
-//     (!filters.statut    || nc.statut    === filters.statut) &&
-//     (!filters.criticite || nc.criticite === filters.criticite)
-//   );
-
-//   return (
-//     <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(20px,4vw,32px) clamp(16px,4vw,40px)' }}>
-
-//       <Carte
-//         titre="Non-Conformités"
-//         icone={<IFiche t={16}/>}
-//         action={
-//           <Btn variant="primary" onClick={onNouveau}>
-//             <IPlus t={15}/> Nouvelle NC
-//           </Btn>
-//         }
-//       >
-//         {/* Filtres */}
-//         <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-//           <span style={{ color: C.texteDoux, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-//             <IRecherche t={15}/> Filtrer :
-//           </span>
-//           {[
-//             { k: 'statut',    opts: ['', 'brouillon', 'ouverte', 'en_cours', 'cloturee'], label: 'Statut' },
-//             { k: 'criticite', opts: ['', 'faible', 'moyenne', 'elevee', 'critique'],      label: 'Criticité' },
-//           ].map(f => (
-//             <select key={f.k} value={filters[f.k]}
-//               onChange={e => setFilters({ ...filters, [f.k]: e.target.value })}
-//               style={{ padding: '7px 12px', border: `1px solid ${C.borderFort}`, borderRadius: 8,
-//                 fontSize: 13, fontFamily: C.police, color: C.texte, background: '#fff', cursor: 'pointer' }}>
-//               {f.opts.map(o => <option key={o} value={o}>{o || `Tous (${f.label})`}</option>)}
-//             </select>
-//           ))}
-//           <Btn variant="ghost" onClick={load}><IRecherche t={14}/> Actualiser</Btn>
-//           <span style={{ marginLeft: 'auto', fontSize: 13, color: C.texteDoux, fontFamily: C.policeMono }}>
-//             {ncsFiltrees.length} résultat(s)
-//           </span>
-//         </div>
-
-
-//         {loading
-//           ? <div style={{ padding: '32px 0', textAlign: 'center', color: C.texteDoux }}>Chargement…</div>
-//           : ncsFiltrees.length === 0
-//           ? <div style={{ padding: '40px 0', textAlign: 'center', color: C.texteFaible }}>
-//               <div style={{ color: C.borderFort, display: 'flex', justifyContent: 'center', marginBottom: 10 }}><IFiche t={40}/></div>
-//               <div style={{ fontWeight: 600, color: C.texte, marginBottom: 4 }}>Aucune NC trouvée</div>
-//               <div style={{ fontSize: 13 }}>Modifiez les filtres ou créez une nouvelle fiche.</div>
-//             </div>
-//           : <div style={{ overflowX: 'auto' }}>
-//               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-//                 <thead>
-//                   <tr>
-//                     {['Numéro NC', 'Intitulé', 'Service', 'Criticité', 'Statut', 'Émetteur', 'Date', ''].map(h => (
-//                       <th key={h} style={{ textAlign: 'left', padding: '9px 12px', fontSize: 12,
-//                         color: C.texteDoux, borderBottom: `2px solid ${C.border}`, fontWeight: 600,
-//                         background: C.surfaceAlt, whiteSpace: 'nowrap' }}>{h}</th>
-//                     ))}
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {ncsFiltrees.map((nc, i) => (
-//                     <tr key={nc.id}
-//                       style={{ background: i % 2 === 0 ? '#fff' : C.surfaceAlt, transition: 'background .12s', cursor: 'pointer' }}
-//                       onMouseEnter={e => e.currentTarget.style.background = C.greenBg}
-//                       onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : C.surfaceAlt}>
-//                       <td style={TD}>
-//                         <span style={{ fontFamily: C.policeMono, color: C.green, fontWeight: 700, fontSize: 13 }}>
-//                           {nc.numero || '—'}
-//                         </span>
-//                       </td>
-//                       <td style={{ ...TD, maxWidth: 220 }}>
-//                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
-//                           {nc.intitule || nc.titre || '—'}
-//                         </div>
-//                       </td>
-//                       <td style={{ ...TD, color: C.texteDoux }}>{nc.service || '—'}</td>
-//                       <td style={TD}><BadgeCriticite criticite={nc.criticite} /></td>
-//                       <td style={TD}><BadgeStatut statut={nc.statut} /></td>
-//                       <td style={{ ...TD, color: C.texteDoux, fontSize: 12 }}>{nc.emetteur || '—'}</td>
-//                       <td style={{ ...TD, color: C.texteFaible, fontSize: 12, fontFamily: C.policeMono }}>
-//                         {nc.creeLe ? new Date(nc.creeLe).toLocaleDateString('fr-FR') : '—'}
-//                       </td>
-//                       <td style={TD}>
-//                         <Btn variant="ghost" onClick={() => onOuvrir(nc.id)}>
-//                           <IRetour t={13}/> Ouvrir
-//                         </Btn>
-//                       </td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-//             </div>
-//         }
-//       </Carte>
-//     </div>
-//   );
-// }
-
-// const TD = { padding: '10px 12px', borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle' };
-
 // src/pages/NcList.jsx
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { C } from '../lib/theme.js';
 import { api } from '../lib/api.js';
 import { Carte, Btn, BadgeStatut, BadgeCriticite } from '../components/ui.jsx';
 import { IFiche, IPlus, IRecherche, IRetour, IFleche, IDoc5M, IEnvoi, ICheck } from '../components/Icones.jsx';
-
-// --- Colonnes disponibles ----------------------------------------------------
-// `cle` doit correspondre à une entrée du tableau `valeur(nc)` plus bas.
-const COLONNES = [
-  { cle: 'numero',      label: 'Numéro NC',  parDefaut: true },
-  { cle: 'intitule',    label: 'Intitulé',   parDefaut: true },
-  { cle: 'service',     label: 'Service',    parDefaut: true },
-  { cle: 'criticite',   label: 'Criticité',  parDefaut: true },
-  { cle: 'statut',      label: 'Statut',     parDefaut: true },
-  { cle: 'emetteur',    label: 'Émetteur',   parDefaut: true },
-  { cle: 'date',        label: 'Date',       parDefaut: true },
-  { cle: 'sousType',    label: 'Sous-type produit / service', parDefaut: false },
-  { cle: 'fournisseur', label: 'Fournisseur / Fabricant',      parDefaut: false },
-  { cle: 'lotInterne',  label: 'N° lot interne',                parDefaut: false },
-  { cle: 'pilote',      label: 'Pilote assigné',                parDefaut: false },
-  { cle: 'capa',        label: 'Actions CAPA',                  parDefaut: false },
-  { cle: 'efficacite',  label: 'Efficacité',                    parDefaut: false },
-  { cle: 'refDocument', label: 'Réf. document',                 parDefaut: false },
-];
-
-const CLE_STOCKAGE = 'innofaso_nclist_colonnes';
-const CLE_STOCKAGE_PERSO = 'innofaso_nclist_colonnes_perso';
-const CLE_STOCKAGE_VALEURS_PERSO = 'innofaso_nclist_valeurs_perso';
-
-function colonnesParDefaut() {
-  return COLONNES.filter((c) => c.parDefaut).map((c) => c.cle);
-}
-
-function chargerColonnesPerso() {
-  try {
-    const brut = localStorage.getItem(CLE_STOCKAGE_PERSO);
-    const parsed = brut ? JSON.parse(brut) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function chargerValeursPerso() {
-  try {
-    const brut = localStorage.getItem(CLE_STOCKAGE_VALEURS_PERSO);
-    return brut ? JSON.parse(brut) : {};
-  } catch {
-    return {};
-  }
-}
-
-function chargerColonnesVisibles() {
-  try {
-    const brut = localStorage.getItem(CLE_STOCKAGE);
-    if (!brut) return colonnesParDefaut();
-    const parsed = JSON.parse(brut);
-    return Array.isArray(parsed) && parsed.length ? parsed : colonnesParDefaut();
-  } catch {
-    return colonnesParDefaut();
-  }
-}
 
 const SOUS_TYPE_LABEL = {
   produit_fini_semi_fini: 'Produit Fini & Semi Fini',
@@ -191,16 +13,58 @@ const SOUS_TYPE_LABEL = {
   autre: 'Autre',
 };
 
+function IColonne({ t = 15 }) {
+  return (
+    <svg width={t} height={t} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  );
+}
+function ICroix({ t = 12 }) {
+  return (
+    <svg width={t} height={t} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.5" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+const COLONNES_FIXES_DISPONIBLES = [
+  { cle: 'quantiteAnomalie', label: 'Qté en anomalie', get: (nc) => nc.quantiteAnomalie || '—' },
+  { cle: 'actionCorrective', label: 'Action corrective', get: (nc) => {
+      const actions = nc.capa?.actions || [];
+      if (!actions.length) return '—';
+      return actions.map((a) => a.libelle).filter(Boolean).join(', ') || '—';
+    } },
+  { cle: 'fournisseur', label: 'Fournisseur', get: (nc) => nc.fournisseur || '—' },
+  { cle: 'typeObjetCol', label: "Type d'objet", get: (nc) => (nc.typeObjet || []).join(', ') || '—' },
+  { cle: 'classificationCol', label: 'Classification', get: (nc) => nc.classification || '—' },
+];
+
+const COLONNES_FIXES_PAR_DEFAUT = ['quantiteAnomalie', 'actionCorrective', 'fournisseur', 'typeObjetCol', 'classificationCol'];
+
 export default function NcList({ onOuvrir, onNouveau }) {
   const [ncs, setNcs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ statut: '', criticite: '' });
-  const [colonnesVisibles, setColonnesVisibles] = useState(chargerColonnesVisibles());
-  const [colonnesPerso, setColonnesPerso] = useState(chargerColonnesPerso());
-  const [valeursPerso, setValeursPerso] = useState(chargerValeursPerso());
-  const [menuColonnesOuvert, setMenuColonnesOuvert] = useState(false);
   const [ligneOuverte, setLigneOuverte] = useState(null);
-  const [nouvelleColonneLabel, setNouvelleColonneLabel] = useState('');
+
+  const [colonnesPerso, setColonnesPerso] = useState([]);
+  const [loadingColonnes, setLoadingColonnes] = useState(true);
+  const [panneauColonnes, setPanneauColonnes] = useState(false);
+  const [nouvelleColonne, setNouvelleColonne] = useState({ libelle: '', type: 'texte' });
+  const [enCoursAjout, setEnCoursAjout] = useState(false);
+  const [erreurColonne, setErreurColonne] = useState('');
+
+  const [colonnesFixesActives, setColonnesFixesActives] = useState(COLONNES_FIXES_PAR_DEFAUT);
+
+  const [editionCellule, setEditionCellule] = useState(null);
+  const [valeurEnEdition, setValeurEnEdition] = useState('');
+  const [enregistrementEnCours, setEnregistrementEnCours] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -209,130 +73,202 @@ export default function NcList({ onOuvrir, onNouveau }) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
-
-  useEffect(() => {
-    localStorage.setItem(CLE_STOCKAGE, JSON.stringify(colonnesVisibles));
-  }, [colonnesVisibles]);
-
-  useEffect(() => {
-    localStorage.setItem(CLE_STOCKAGE_PERSO, JSON.stringify(colonnesPerso));
-  }, [colonnesPerso]);
-
-  useEffect(() => {
-    localStorage.setItem(CLE_STOCKAGE_VALEURS_PERSO, JSON.stringify(valeursPerso));
-  }, [valeursPerso]);
-
-  const basculerColonne = (cle) => {
-    setColonnesVisibles((prev) =>
-      prev.includes(cle) ? prev.filter((c) => c !== cle) : [...prev, cle]);
+  const chargerColonnesPerso = async () => {
+    setLoadingColonnes(true);
+    try { const data = await api.listerColonnesPerso(); setColonnesPerso(data); }
+    catch { setColonnesPerso([]); }
+    finally { setLoadingColonnes(false); }
   };
 
-  const ajouterColonnePerso = () => {
-    const label = nouvelleColonneLabel.trim();
-    if (!label) return;
-    const cle = `perso_${Date.now()}`;
-    setColonnesPerso((prev) => [...prev, { cle, label }]);
-    setColonnesVisibles((prev) => [...prev, cle]);
-    setNouvelleColonneLabel('');
-  };
-
-  const retirerColonnePerso = (cle) => {
-    setColonnesPerso((prev) => prev.filter((c) => c.cle !== cle));
-    setColonnesVisibles((prev) => prev.filter((c) => c !== cle));
-    setValeursPerso((prev) => {
-      const copie = { ...prev };
-      delete copie[cle];
-      return copie;
-    });
-  };
-
-  const definirValeurPerso = (ncId, cle, val) => {
-    setValeursPerso((prev) => ({
-      ...prev,
-      [ncId]: { ...(prev[ncId] || {}), [cle]: val },
-    }));
-  };
+  useEffect(() => { load(); chargerColonnesPerso(); }, []);
 
   const ncsFiltrees = useMemo(() => ncs.filter((nc) =>
     (!filters.statut    || nc.statut    === filters.statut) &&
     (!filters.criticite || nc.criticite === filters.criticite)
   ), [ncs, filters]);
 
-  // Calcule la valeur affichable d'une colonne pour une NC donnée.
-  const valeur = (nc, cle) => {
-    switch (cle) {
-      case 'numero':
-        return <span style={{ fontFamily: C.policeMono, color: C.green, fontWeight: 700, fontSize: 13 }}>{nc.numero || '—'}</span>;
-      case 'intitule':
-        return <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, maxWidth: 220 }}>{nc.intitule || nc.titre || '—'}</div>;
-      case 'service':
-        return <span style={{ color: C.texteDoux }}>{nc.service || '—'}</span>;
-      case 'criticite':
-        return <BadgeCriticite criticite={nc.criticite} />;
-      case 'statut':
-        return <BadgeStatut statut={nc.statut} />;
-      case 'emetteur':
-        return <span style={{ color: C.texteDoux, fontSize: 12 }}>{nc.emetteur || '—'}</span>;
-      case 'date':
-        return <span style={{ color: C.texteFaible, fontSize: 12, fontFamily: C.policeMono }}>{nc.creeLe ? new Date(nc.creeLe).toLocaleDateString('fr-FR') : '—'}</span>;
-      case 'sousType':
-        return <span style={{ color: C.texteDoux, fontSize: 12.5 }}>{SOUS_TYPE_LABEL[nc.sousType] || nc.sousType || '—'}</span>;
-      case 'fournisseur':
-        return <span style={{ color: C.texteDoux, fontSize: 12.5 }}>{nc.fournisseur || '—'}</span>;
-      case 'lotInterne':
-        return <span style={{ color: C.texteDoux, fontSize: 12.5, fontFamily: C.policeMono }}>{nc.lotInterne || '—'}</span>;
-      case 'pilote':
-        return <span style={{ color: C.texteDoux, fontSize: 12.5 }}>{nc.assigneA?.nom || '—'}</span>;
-      case 'capa':
-        return <span style={{ color: C.texteDoux, fontSize: 12.5 }}>{nc.capa?.actions?.length ? `${nc.capa.actions.length} action(s)` : '—'}</span>;
-      case 'efficacite':
-        return <span style={{ color: nc.cloture?.efficacite === 'Efficace' ? C.greenFonce : nc.cloture?.efficacite === 'Inefficace' ? C.rouge : C.texteFaible, fontSize: 12.5, fontWeight: 600 }}>{nc.cloture?.efficacite || '—'}</span>;
-      case 'refDocument':
-        return <span style={{ color: C.texteFaible, fontSize: 11.5, fontFamily: C.policeMono }}>{nc.refDocument || '—'}</span>;
-      default:
-        if (cle.startsWith('perso_')) {
-          return (
-            <input
-              value={valeursPerso[nc.id]?.[cle] || ''}
-              onChange={(e) => definirValeurPerso(nc.id, cle, e.target.value)}
-              placeholder="—"
-              style={{
-                border: 'none', borderBottom: `1px dashed ${C.borderFort}`, background: 'transparent',
-                fontSize: 12.5, color: C.texte, width: '100%', minWidth: 90, padding: '2px 0', outline: 'none',
-              }}
-              onFocus={(e) => { e.target.style.borderBottomColor = C.green; }}
-              onBlur={(e) => { e.target.style.borderBottomColor = C.borderFort; }}
-            />
-          );
-        }
-        return '—';
+  const toggleColonneFixe = (cle) => {
+    setColonnesFixesActives((prev) =>
+      prev.includes(cle) ? prev.filter((c) => c !== cle) : [...prev, cle]);
+  };
+
+  const ajouterColonne = async () => {
+    setErreurColonne('');
+    if (!nouvelleColonne.libelle.trim()) {
+      setErreurColonne('Le libellé est requis.');
+      return;
+    }
+    setEnCoursAjout(true);
+    try {
+      await api.creerColonnePerso({ libelle: nouvelleColonne.libelle.trim(), type: nouvelleColonne.type });
+      setNouvelleColonne({ libelle: '', type: 'texte' });
+      await chargerColonnesPerso();
+    } catch (e) {
+      setErreurColonne(e.message || "Erreur lors de l'ajout de la colonne.");
+    } finally {
+      setEnCoursAjout(false);
     }
   };
 
-  const toutesLesColonnes = [...COLONNES, ...colonnesPerso.map((c) => ({ ...c, parDefaut: false }))];
-  const colonnesAffichees = toutesLesColonnes.filter((c) => colonnesVisibles.includes(c.cle));
+  const supprimerColonne = async (col) => {
+    if (!confirm(`Supprimer la colonne "${col.libelle}" ? Les valeurs déjà saisies seront perdues pour toutes les fiches.`)) return;
+    try {
+      await api.supprimerColonnePerso(col.id);
+      await chargerColonnesPerso();
+    } catch (e) {
+      alert(e.message || 'Erreur lors de la suppression.');
+    }
+  };
+
+  const ouvrirEdition = (nc, col) => {
+    setEditionCellule({ ncId: nc.id, cle: col.cle });
+    setValeurEnEdition(nc.valeursPerso?.[col.cle] ?? '');
+  };
+
+  const annulerEdition = () => {
+    setEditionCellule(null);
+    setValeurEnEdition('');
+  };
+
+  const enregistrerValeur = async (nc, col) => {
+    setEnregistrementEnCours(true);
+    try {
+      const valeursActuelles = nc.valeursPerso || {};
+      const nouvellesValeurs = { ...valeursActuelles, [col.cle]: valeurEnEdition };
+      const ncMaj = await api.majValeursPerso(nc.id, nouvellesValeurs);
+      setNcs((prev) => prev.map((n) => (n.id === nc.id ? { ...n, valeursPerso: ncMaj.valeursPerso } : n)));
+      setEditionCellule(null);
+      setValeurEnEdition('');
+    } catch (e) {
+      alert(e.message || "Erreur lors de l'enregistrement de la valeur.");
+    } finally {
+      setEnregistrementEnCours(false);
+    }
+  };
+
+  const colonnesFixesAffichees = COLONNES_FIXES_DISPONIBLES.filter((c) => colonnesFixesActives.includes(c.cle));
+  const nbColonnesSupplementaires = colonnesFixesAffichees.length + colonnesPerso.length;
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(20px,4vw,32px) clamp(16px,4vw,40px)' }}>
+    <div style={{ maxWidth: 1300, margin: '0 auto', padding: 'clamp(20px,4vw,32px) clamp(16px,4vw,40px)' }}>
 
       <Carte
         titre="Non-Conformités"
         icone={<IFiche t={16}/>}
         action={
-          <Btn variant="primary" onClick={onNouveau}>
-            <IPlus t={15}/> Nouvelle NC
-          </Btn>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn variant="ghost" onClick={() => setPanneauColonnes((o) => !o)}>
+              <IColonne t={15}/> Colonnes
+            </Btn>
+            <Btn variant="primary" onClick={onNouveau}>
+              <IPlus t={15}/> Nouvelle NC
+            </Btn>
+          </div>
         }
       >
-        {/* Filtres + personnalisation des colonnes */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center', position: 'relative' }}>
+        {panneauColonnes && (
+          <div style={{
+            border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px',
+            marginBottom: 18, background: C.surfaceAlt,
+          }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22 }}>
+
+              <div style={{ flex: '1 1 260px' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.texte, marginBottom: 9 }}>
+                  Colonnes issues de la fiche NC
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {COLONNES_FIXES_DISPONIBLES.map((c) => (
+                    <label key={c.cle} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: C.texteDoux }}>
+                      <input
+                        type="checkbox"
+                        checked={colonnesFixesActives.includes(c.cle)}
+                        onChange={() => toggleColonneFixe(c.cle)}
+                        style={{ accentColor: C.green, width: 15, height: 15 }}
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ flex: '1 1 320px' }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.texte, marginBottom: 9 }}>
+                  Colonnes personnalisées
+                </div>
+
+                {loadingColonnes ? (
+                  <div style={{ fontSize: 12.5, color: C.texteFaible }}>Chargement…</div>
+                ) : colonnesPerso.length === 0 ? (
+                  <div style={{ fontSize: 12.5, color: C.texteFaible, marginBottom: 10 }}>
+                    Aucune colonne personnalisée pour l'instant.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                    {colonnesPerso.map((col) => (
+                      <div key={col.id} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: '#fff', border: `1px solid ${C.border}`, borderRadius: 7,
+                        padding: '6px 10px', fontSize: 12.5,
+                      }}>
+                        <span style={{ color: C.texte, fontWeight: 600 }}>{col.libelle}</span>
+                        <button
+                          onClick={() => supprimerColonne(col)}
+                          title="Supprimer cette colonne"
+                          style={{
+                            background: C.rougeBg, border: '1px solid #f0cfcc', color: C.rouge,
+                            borderRadius: 6, padding: '3px 6px', cursor: 'pointer', display: 'flex',
+                          }}
+                        >
+                          <ICroix t={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <input
+                    value={nouvelleColonne.libelle}
+                    onChange={(e) => setNouvelleColonne((s) => ({ ...s, libelle: e.target.value }))}
+                    placeholder="Nom de la nouvelle colonne…"
+                    style={{
+                      flex: '1 1 160px', padding: '7px 10px', border: `1px solid ${C.borderFort}`,
+                      borderRadius: 7, fontSize: 13, fontFamily: C.police,
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && ajouterColonne()}
+                  />
+                  <select
+                    value={nouvelleColonne.type}
+                    onChange={(e) => setNouvelleColonne((s) => ({ ...s, type: e.target.value }))}
+                    style={{ padding: '7px 10px', border: `1px solid ${C.borderFort}`, borderRadius: 7, fontSize: 13, fontFamily: C.police, background: '#fff' }}
+                  >
+                    <option value="texte">Texte</option>
+                    <option value="nombre">Nombre</option>
+                    <option value="date">Date</option>
+                  </select>
+                  <Btn variant="primary" disabled={enCoursAjout} onClick={ajouterColonne}>
+                    <IPlus t={14}/> {enCoursAjout ? 'Ajout…' : 'Ajouter'}
+                  </Btn>
+                </div>
+                {erreurColonne && (
+                  <div style={{ fontSize: 12, color: C.rouge, marginTop: 7 }}>{erreurColonne}</div>
+                )}
+                <div style={{ fontSize: 11.5, color: C.texteFaible, marginTop: 8, lineHeight: 1.5 }}>
+                  Les colonnes personnalisées sont visibles par tous les utilisateurs et persistées en base de données.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ color: C.texteDoux, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
             <IRecherche t={15}/> Filtrer :
           </span>
           {[
-            { k: 'statut',    opts: ['', 'ouverte', 'en_cours', 'cloturee'],            label: 'Statut' },
-            { k: 'criticite', opts: ['', 'faible', 'moyenne', 'elevee', 'critique'],     label: 'Criticité' },
+            { k: 'statut',    opts: ['', 'brouillon', 'ouverte', 'en_cours', 'cloturee'], label: 'Statut' },
+            { k: 'criticite', opts: ['', 'faible', 'moyenne', 'elevee', 'critique'],      label: 'Criticité' },
           ].map((f) => (
             <select key={f.k} value={filters[f.k]}
               onChange={(e) => setFilters({ ...filters, [f.k]: e.target.value })}
@@ -342,78 +278,6 @@ export default function NcList({ onOuvrir, onNouveau }) {
             </select>
           ))}
           <Btn variant="ghost" onClick={load}><IRecherche t={14}/> Actualiser</Btn>
-
-          <div style={{ position: 'relative' }}>
-            <Btn variant="ghost" onClick={() => setMenuColonnesOuvert((o) => !o)}>
-              Colonnes ({colonnesAffichees.length}/{toutesLesColonnes.length})
-            </Btn>
-            {menuColonnesOuvert && (
-              <div style={{
-                position: 'absolute', top: '110%', left: 0, zIndex: 30, background: '#fff',
-                border: `1px solid ${C.border}`, borderRadius: 10, boxShadow: C.ombreFort,
-                padding: 12, width: 280, maxHeight: 380, overflowY: 'auto',
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.texteDoux, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.02em' }}>
-                  Colonnes standard
-                </div>
-                {COLONNES.map((c) => (
-                  <label key={c.cle} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, padding: '5px 2px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={colonnesVisibles.includes(c.cle)}
-                      onChange={() => basculerColonne(c.cle)} style={{ accentColor: C.green }} />
-                    {c.label}
-                  </label>
-                ))}
-
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.texteDoux, margin: '12px 0 8px', textTransform: 'uppercase', letterSpacing: '.02em' }}>
-                  Colonnes personnalisées
-                </div>
-                {colonnesPerso.length === 0 && (
-                  <div style={{ fontSize: 12, color: C.texteFaible, marginBottom: 8 }}>Aucune pour l'instant.</div>
-                )}
-                {colonnesPerso.map((c) => (
-                  <div key={c.cle} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 2px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, cursor: 'pointer', flex: 1 }}>
-                      <input type="checkbox" checked={colonnesVisibles.includes(c.cle)}
-                        onChange={() => basculerColonne(c.cle)} style={{ accentColor: C.green }} />
-                      {c.label}
-                    </label>
-                    <button onClick={() => retirerColonnePerso(c.cle)} title="Supprimer cette colonne"
-                      style={{ background: 'none', border: 'none', color: C.rouge, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      ✕
-                    </button>
-                  </div>
-                ))}
-
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <input
-                    value={nouvelleColonneLabel}
-                    onChange={(e) => setNouvelleColonneLabel(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') ajouterColonnePerso(); }}
-                    placeholder="Nom de la nouvelle colonne…"
-                    style={{ flex: 1, fontSize: 12.5, padding: '6px 8px', border: `1px solid ${C.borderFort}`, borderRadius: 6 }}
-                  />
-                  <button onClick={ajouterColonnePerso} style={{
-                    background: C.green, color: '#fff', border: 'none', borderRadius: 6,
-                    padding: '6px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  }}>
-                    <IPlus t={12} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, gap: 8 }}>
-                  <button onClick={() => setColonnesVisibles(toutesLesColonnes.map((c) => c.cle))}
-                    style={{ fontSize: 11.5, color: C.green, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                    Tout afficher
-                  </button>
-                  <button onClick={() => setColonnesVisibles(colonnesParDefaut())}
-                    style={{ fontSize: 11.5, color: C.texteFaible, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-                    Réinitialiser
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           <span style={{ marginLeft: 'auto', fontSize: 13, color: C.texteDoux, fontFamily: C.policeMono }}>
             {ncsFiltrees.length} résultat(s)
           </span>
@@ -432,8 +296,11 @@ export default function NcList({ onOuvrir, onNouveau }) {
                 <thead>
                   <tr>
                     <th style={{ ...TH, width: 32 }}></th>
-                    {colonnesAffichees.map((c) => (
-                      <th key={c.cle} style={TH}>{c.label}</th>
+                    {['Numéro NC', 'Intitulé', 'Service', 'Criticité', 'Statut', 'Émetteur', 'Date',
+                      ...colonnesFixesAffichees.map((c) => c.label),
+                      ...colonnesPerso.map((c) => c.libelle),
+                    ].map((h, idx) => (
+                      <th key={`${h}_${idx}`} style={TH}>{h}</th>
                     ))}
                     <th style={TH}></th>
                   </tr>
@@ -444,7 +311,7 @@ export default function NcList({ onOuvrir, onNouveau }) {
                     return (
                       <Fragment key={nc.id}>
                         <tr
-                          style={{ background: i % 2 === 0 ? '#fff' : C.surfaceAlt, transition: 'background .12s', cursor: 'pointer' }}
+                          style={{ background: i % 2 === 0 ? '#fff' : C.surfaceAlt, transition: 'background .12s' }}
                           onMouseEnter={(e) => e.currentTarget.style.background = C.greenBg}
                           onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? '#fff' : C.surfaceAlt}>
                           <td style={TD}>
@@ -456,9 +323,82 @@ export default function NcList({ onOuvrir, onNouveau }) {
                               <IFleche t={14} />
                             </button>
                           </td>
-                          {colonnesAffichees.map((c) => (
-                            <td key={c.cle} style={TD}>{valeur(nc, c.cle)}</td>
+                          <td style={TD}>
+                            <span style={{ fontFamily: C.policeMono, color: C.green, fontWeight: 700, fontSize: 13 }}>
+                              {nc.numero || '—'}
+                            </span>
+                          </td>
+                          <td style={{ ...TD, maxWidth: 220 }}>
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                              {nc.intitule || nc.titre || '—'}
+                            </div>
+                          </td>
+                          <td style={{ ...TD, color: C.texteDoux }}>{nc.service || '—'}</td>
+                          <td style={TD}><BadgeCriticite criticite={nc.criticite} /></td>
+                          <td style={TD}><BadgeStatut statut={nc.statut} /></td>
+                          <td style={{ ...TD, color: C.texteDoux, fontSize: 12 }}>{nc.emetteur || '—'}</td>
+                          <td style={{ ...TD, color: C.texteFaible, fontSize: 12, fontFamily: C.policeMono }}>
+                            {nc.creeLe ? new Date(nc.creeLe).toLocaleDateString('fr-FR') : '—'}
+                          </td>
+
+                          {colonnesFixesAffichees.map((col) => (
+                            <td key={col.cle} style={{ ...TD, maxWidth: 200 }}>
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, color: C.texteDoux }}>
+                                {col.get(nc)}
+                              </div>
+                            </td>
                           ))}
+
+                          {colonnesPerso.map((col) => {
+                            const enEdition = editionCellule?.ncId === nc.id && editionCellule?.cle === col.cle;
+                            const valeurCellule = nc.valeursPerso?.[col.cle];
+                            return (
+                              <td key={col.id} style={{ ...TD, minWidth: 120 }}>
+                                {enEdition ? (
+                                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                                    <input
+                                      autoFocus
+                                      type={col.type === 'nombre' ? 'number' : col.type === 'date' ? 'date' : 'text'}
+                                      value={valeurEnEdition}
+                                      onChange={(e) => setValeurEnEdition(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') enregistrerValeur(nc, col);
+                                        if (e.key === 'Escape') annulerEdition();
+                                      }}
+                                      style={{
+                                        width: 100, padding: '4px 7px', fontSize: 12.5,
+                                        border: `1px solid ${C.green}`, borderRadius: 6, fontFamily: C.police,
+                                      }}
+                                    />
+                                    <button
+                                      disabled={enregistrementEnCours}
+                                      onClick={() => enregistrerValeur(nc, col)}
+                                      style={{ background: C.greenBg, border: `1px solid ${C.greenBord}`, color: C.greenFonce, borderRadius: 6, padding: '4px 7px', cursor: 'pointer', fontSize: 11 }}
+                                    >✓</button>
+                                    <button
+                                      onClick={annulerEdition}
+                                      style={{ background: C.rougeBg, border: '1px solid #f0cfcc', color: C.rouge, borderRadius: 6, padding: '4px 7px', cursor: 'pointer', fontSize: 11 }}
+                                    >✕</button>
+                                  </div>
+                                ) : (
+                                  <div
+                                    onClick={() => ouvrirEdition(nc, col)}
+                                    title="Cliquer pour modifier"
+                                    style={{
+                                      fontSize: 12.5, color: valeurCellule ? C.texte : C.texteFaible,
+                                      cursor: 'pointer', padding: '3px 6px', borderRadius: 6,
+                                      minHeight: 18, border: '1px dashed transparent',
+                                    }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.border = `1px dashed ${C.borderFort}`; e.currentTarget.style.background = '#fff'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.border = '1px dashed transparent'; e.currentTarget.style.background = 'transparent'; }}
+                                  >
+                                    {valeurCellule || '— cliquer pour saisir —'}
+                                  </div>
+                                )}
+                              </td>
+                            );
+                          })}
+
                           <td style={TD}>
                             <Btn variant="ghost" onClick={() => onOuvrir(nc.id)}>
                               <IRetour t={13}/> Ouvrir
@@ -467,7 +407,7 @@ export default function NcList({ onOuvrir, onNouveau }) {
                         </tr>
                         {ouverte && (
                           <tr>
-                            <td colSpan={colonnesAffichees.length + 2} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }}>
+                            <td colSpan={8 + nbColonnesSupplementaires} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }}>
                               <DetailNc nc={nc} />
                             </td>
                           </tr>
@@ -484,7 +424,6 @@ export default function NcList({ onOuvrir, onNouveau }) {
   );
 }
 
-// --- Ligne dépliable : sections ajoutées à la fiche NC ----------------------
 function DetailNc({ nc }) {
   const cinqM = nc.analyse?.cinqM || {};
   const pourquoiParM = nc.analyse?.pourquoiParM || {};
@@ -493,7 +432,6 @@ function DetailNc({ nc }) {
   return (
     <div style={{ background: C.surfaceAlt, padding: '18px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
-      {/* Bloc identification / sous-type produit */}
       <div>
         <SousTitre icone={<IFiche t={14} />} texte="Identification & produit" />
         <Ligne label="Référence document" valeur={nc.refDocument} />
@@ -506,7 +444,6 @@ function DetailNc({ nc }) {
         <Ligne label="Quantité en anomalie" valeur={nc.quantiteAnomalie} />
       </div>
 
-      {/* Bloc 5M / 5 Pourquoi */}
       <div>
         <SousTitre icone={<IDoc5M t={14} />} texte="Analyse 5M — Pourquoi / Parce que" />
         {['mainOeuvre', 'methode', 'materiel', 'milieu', 'matiere'].map((m) => {
@@ -528,7 +465,6 @@ function DetailNc({ nc }) {
         {Object.values(cinqM).every((v) => !v) && <div style={{ fontSize: 12, color: C.texteFaible }}>Aucune analyse renseignée.</div>}
       </div>
 
-      {/* Bloc CAPA */}
       <div>
         <SousTitre icone={<ICheck t={14} />} texte="Plan CAPA" />
         {actions.length === 0
@@ -541,7 +477,6 @@ function DetailNc({ nc }) {
         }
       </div>
 
-      {/* Bloc clôture */}
       <div>
         <SousTitre icone={<ICheck t={14} />} texte="Clôture" />
         <Ligne label="Efficacité" valeur={nc.cloture?.efficacite} />
@@ -550,7 +485,6 @@ function DetailNc({ nc }) {
         <Ligne label="Mise à jour SMI" valeur={nc.cloture?.majRisques} />
       </div>
 
-      {/* Bloc transferts par email (basé sur les événements de la NC) */}
       <div style={{ gridColumn: '1 / -1' }}>
         <SousTitre icone={<IEnvoi t={14} />} texte="Transferts par email" />
         {(nc.evenements || []).filter((e) => e.motif === 'transfert_fiche').length === 0

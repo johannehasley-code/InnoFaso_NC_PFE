@@ -42,6 +42,57 @@ export async function creerApp(deps = {}) {
 
   app.get('/api/services', (req, res) => res.json(listeServices()));
 
+ app.get('/api/colonnes-perso', verifyToken, h(async (req, res) => {
+    const colonnes = await store.listerColonnesPerso();
+    res.json(colonnes);
+  }));
+ 
+  app.post('/api/colonnes-perso', verifyToken, h(async (req, res) => {
+    const { libelle, type } = req.body || {};
+    if (!libelle?.trim()) {
+      return res.status(400).json({ erreur: 'Le libellé de la colonne est requis.' });
+    }
+    const cle = libelle
+      .trim()
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // retire les accents
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 60);
+    if (!cle) {
+      return res.status(400).json({ erreur: 'Libellé invalide.' });
+    }
+    const existantes = await store.listerColonnesPerso();
+    if (existantes.some((c) => c.cle === cle)) {
+      return res.status(409).json({ erreur: 'Une colonne avec un libellé équivalent existe déjà.' });
+    }
+    const colonne = {
+      id: `col_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      cle,
+      libelle: libelle.trim(),
+      type: ['texte', 'nombre', 'date'].includes(type) ? type : 'texte',
+      ordre: existantes.length,
+      creePar: req.user?.email || null,
+    };
+    const cree = await store.ajouterColonnePerso(colonne);
+    res.status(201).json(cree);
+  }));
+ 
+  app.delete('/api/colonnes-perso/:id', verifyToken, h(async (req, res) => {
+    const ok = await store.supprimerColonnePerso(req.params.id);
+    if (!ok) return res.status(404).json({ erreur: 'Colonne introuvable.' });
+    res.json({ ok: true });
+  }));
+ 
+  // ── Valeurs des colonnes personnalisées pour une NC donnée ─────────────
+  app.put('/api/nc/:id/valeurs-perso', verifyToken, h(async (req, res) => {
+    const valeurs = req.body?.valeurs || {};
+    const nc = await store.majValeursPerso(req.params.id, valeurs);
+    if (!nc) return res.status(404).json({ erreur: 'NC introuvable' });
+    res.json(orch.infos(nc));
+  }));
+ 
+
   app.get('/api/nc', verifyToken, h(async (req, res) => {
     const ncs = await store.listerNcs();
     res.json(ncs.map((n) => orch.infos(n)));
@@ -95,7 +146,7 @@ export async function creerApp(deps = {}) {
     const { destinataire, copies = [], message = '' } = req.body || {};
     if (!destinataire) return res.status(400).json({ erreur: 'Destinataire principal requis' });
 
-    const lienApplication = process.env.APP_URL || 'http://localhost:5173';
+const lienApplication = process.env.APP_URL || 'http://localhost:5173';
     const corps = `INNOFASO QUALITE — Transfert de la fiche ${nc.numero}\nIntitulé : ${nc.intitule || 'Contrôle'}\n\nConsulter la fiche : ${lienApplication}\n\n${message}`;
     const tousDestinataires = [destinataire, ...copies.filter(Boolean)];
     const envois = await Promise.all(
