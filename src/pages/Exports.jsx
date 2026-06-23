@@ -1,4 +1,4 @@
-// src/pages/Exports.jsx — F10 : Export PDF + Excel | F11 : Recherche | F15 : Rapport mensuel
+// src/pages/Exports.jsx — F11 : Recherche | F15 : Rapport mensuel
 import { useState, useEffect, useCallback } from 'react';
 import { C } from '../lib/theme.js';
 import { exportsAPI } from '../lib/api.js';
@@ -20,7 +20,6 @@ const now        = new Date();
 
 const TABS = [
   { id: 'search',  icone: <IRecherche t={15}/>, label: 'Recherche multicritère (F11)' },
-  { id: 'export',  icone: <IEnregistrer t={15}/>, label: 'Exports PDF / Excel (F10)' },
   { id: 'rapport', icone: <ICalendrier t={15}/>, label: 'Rapport mensuel (F15)' },
 ];
 
@@ -32,7 +31,6 @@ export default function Exports() {
   const [meta,       setMeta]       = useState(null);
   const [loading,    setLoading]    = useState(false);
   const [pdfLoading, setPdfLoading] = useState({});
-  const [xlsLoading, setXlsLoading] = useState(false);
   const [rapLoading, setRapLoading] = useState(false);
   const [msg,        setMsg]        = useState(null);
   const [rapMois,    setRapMois]    = useState(now.getMonth() + 1);
@@ -40,8 +38,6 @@ export default function Exports() {
 
   const notify = (type, txt) => { setMsg({ type, txt }); setTimeout(() => setMsg(null), 4000); };
   const fv = k => e => setFilters({ ...filters, [k]: e.target.value });
-  const reset = () => setFilters({ search:'', statut:'', criticite:'', service:'',
-    date_debut:'', date_fin:'', limit:50, offset:0 });
 
   const search = useCallback(async (off = 0) => {
     setLoading(true);
@@ -66,17 +62,6 @@ export default function Exports() {
     finally { setPdfLoading(p => ({ ...p, [id]: false })); }
   };
 
-  const exportExcel = async () => {
-    setXlsLoading(true);
-    try {
-      const r = await exportsAPI.exportExcel(filters);
-      if (!r.ok) throw new Error('Erreur génération Excel.');
-      await downloadBlob(r, `Innofaso_NC_${new Date().toISOString().slice(0,10)}.xlsx`);
-      notify('ok', 'Export Excel téléchargé !');
-    } catch (e) { notify('err', e.message); }
-    finally { setXlsLoading(false); }
-  };
-
   const exportRapport = async () => {
     setRapLoading(true);
     try {
@@ -98,7 +83,7 @@ export default function Exports() {
           <IFiche t={22}/> Exports, Rapports et Archivage
         </h1>
         <p style={{ color: C.texteDoux, fontSize: 13, margin: 0 }}>
-          F10 : Export PDF/Excel · F11 : Recherche multicritère · F15 : Rapport mensuel auto
+          F11 : Recherche multicritère · F15 : Rapport mensuel auto
         </p>
       </div>
 
@@ -166,13 +151,6 @@ export default function Exports() {
               <Btn variant="primary" onClick={() => search(0)} disabled={loading}>
                 <IRecherche t={14}/> {loading ? 'Recherche…' : 'Rechercher'}
               </Btn>
-              <Btn variant="ghost" onClick={reset}>↺ Réinitialiser</Btn>
-              {results.length > 0 && (
-                <Btn variant="fonce" onClick={exportExcel} disabled={xlsLoading}
-                  style={{ marginLeft: 'auto' }}>
-                  <IEnregistrer t={14}/> {xlsLoading ? 'Génération…' : 'Exporter Excel'}
-                </Btn>
-              )}
             </div>
           </Carte>
 
@@ -249,49 +227,6 @@ export default function Exports() {
         </div>
       )}
 
-      {/* ── EXPORTS PDF / EXCEL ─────────────────────────────────── */}
-      {activeTab === 'export' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-          <Carte titre="Export Excel — Liste NC avec filtres (F10)" icone={<IEnregistrer t={15}/>}>
-            <p style={{ color: C.texteDoux, fontSize: 13, margin: '0 0 16px' }}>
-              Génère un fichier Excel avec la liste des NC et les filtres actifs.
-              Inclut un onglet de statistiques automatique.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 16 }}>
-              {[['Criticité','criticite',CRITICITES],['Statut','statut',STATUTS]].map(([lb,k,opts]) => (
-                <F key={k} label={lb}>
-                  <select style={INP} value={filters[k]} onChange={fv(k)}>
-                    {opts.map(o => <option key={o} value={o}>{o || `Tous (${lb})`}</option>)}
-                  </select>
-                </F>
-              ))}
-              <F label="Du"><input style={INP} type="date" value={filters.date_debut} onChange={fv('date_debut')}/></F>
-              <F label="Au"><input style={INP} type="date" value={filters.date_fin}   onChange={fv('date_fin')}/></F>
-              <F label="Service"><input style={INP} placeholder="ex: Production" value={filters.service} onChange={fv('service')}/></F>
-            </div>
-            <Btn variant="fonce" onClick={exportExcel} disabled={xlsLoading}>
-              <IEnregistrer t={15}/> {xlsLoading ? 'Génération…' : 'Télécharger Excel'}
-            </Btn>
-          </Carte>
-
-          <Carte titre="Export PDF — Fiche NC individuelle (F10)" icone={<IFiche t={15}/>}>
-            <p style={{ color: C.texteDoux, fontSize: 13, margin: '0 0 14px' }}>
-              Cliquez sur <strong>PDF</strong> dans l'onglet Recherche pour télécharger
-              la fiche NC complète au format A4 — valable pour audit externe.
-            </p>
-            <div style={{ background: C.bleuBg, border: `1px solid #bdd6ee`,
-              borderRadius: 8, padding: 14 }}>
-              <p style={{ color: C.bleu, fontSize: 13, margin: 0 }}>
-                La fiche PDF contient : identification, description, analyse 5M,
-                méthode des 5 Pourquoi, traitement CAPA, vérification et signatures.
-                Conforme à la fiche papier Innofaso PM-SM-EN-FNC-E.
-              </p>
-            </div>
-          </Carte>
-        </div>
-      )}
-
       {/* ── RAPPORT MENSUEL ─────────────────────────────────────── */}
       {activeTab === 'rapport' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -362,5 +297,3 @@ const INP = { padding: '8px 12px', border: `1.5px solid ${C.borderFort}`, border
               fontFamily: 'inherit' };
 const TD  = { padding: '9px 12px', fontSize: 13, borderBottom: `1px solid ${C.border}`,
               verticalAlign: 'middle' };
-              
-

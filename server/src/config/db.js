@@ -15,6 +15,6 @@ const pool = mysql.createPool({
 
 pool.getConnection()
   .then(conn => { console.log('✅ MySQL connecté :', process.env.DB_NAME); conn.release(); })
-  .catch(err => { console.error('❌ Erreur MySQL :', err.message); process.exit(1); });
+  .catch(err => { console.error('❌ Erreur MySQL complète :', err); process.exit(1); });
 
 export default pool;

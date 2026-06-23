@@ -1,5 +1,6 @@
 import { C, COULEUR_STATUT, COULEUR_CRITICITE } from '../lib/theme.js';
 import { IBouclier } from './Icones.jsx';
+import logoInnofaso from '../assets/logo-innofaso.jpg';
 
 // --- Badges ----------------------------------------------------------------
 export function BadgeStatut({ statut }) {
@@ -130,19 +131,17 @@ export function CarteKPI({ icone, valeur, label, couleur = C.green, fond = C.gre
 }
 
 // --- En-tête d'application (marque Innofaso) -------------------------------
-export function LogoInnofaso({ t = 34 }) {
+export function LogoInnofaso({ t = 50 }) {
   return (
-    <span style={{
-      width: t, height: t, borderRadius: 9, background: C.green, color: '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-      boxShadow: '0 2px 8px -2px rgba(35,94,60,.5)',
-    }}>
-      <IBouclier t={t * 0.6} />
-    </span>
+    <img
+      src={logoInnofaso}
+      alt="InnoFaso"
+      style={{ height: t, width: 'auto', flexShrink: 0, display: 'block' }}
+    />
   );
 }
 
-export function Entete({ sousTitre, droite }) {
+export function Entete({droite }) {
   return (
     <header style={{
       background: C.surface, borderBottom: `1px solid ${C.border}`,
@@ -160,7 +159,7 @@ export function Entete({ sousTitre, droite }) {
               Innofaso <span style={{ color: C.texteFaible, fontWeight: 500 }}>· Qualité</span>
             </div>
             <div style={{ fontSize: 12, color: C.texteDoux, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {sousTitre || 'Gestion des non-conformités'}
+              { 'Gestion des non-conformités'}
             </div>
           </div>
         </div>

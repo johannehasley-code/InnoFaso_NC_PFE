@@ -10,7 +10,7 @@
 // ============================================================================
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || 'groq-1.1-mini';
+const GROQ_MODEL = import.meta.env.VITE_GROQ_MODEL || 'llama-3.1-8b-instant';
 
 /**
  * Construit le contexte de la NC pour le prompt IA.

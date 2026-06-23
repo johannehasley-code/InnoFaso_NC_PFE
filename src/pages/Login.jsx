@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { C } from '../lib/theme.js';
-import { IBouclier, IHorloge } from '../components/Icones.jsx';
-import fondQualite from '../assets/fond-controle-qualite.jpg';
-
+import {IHorloge } from '../components/Icones.jsx';
+import fondQualite from '../assets/fond-equipe-innofaso.jpg';
+import logoInnofaso from '../assets/logo-innofaso.jpg';
 const REDIRECTS = {
   operateur:           '/',
   responsable_service: '/',
@@ -71,16 +71,13 @@ export default function Login() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 64, height: 64, borderRadius: 16, marginBottom: 14,
-            background: `linear-gradient(135deg,${C.greenEncreuse},${C.green})`,
-            color: '#fff', boxShadow: '0 4px 16px rgba(35,94,60,.4)' }}>
-            <IBouclier t={32} />
-          </div>
-          <h1 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 700, color: C.greenFonce,
-            fontFamily: C.police }}>INNOFASO</h1>
-          <p style={{ margin: 0, fontSize: 13, color: C.texteDoux }}>Gestion des Non-Conformités</p>
-        </div>
+  <img
+    src={logoInnofaso}
+    alt="InnoFaso"
+    style={{ height: 100, marginBottom: 14, display: 'block', marginInline: 'auto' }}
+  />
+  <p style={{ margin: 0, fontSize: 13, color: C.texteDoux }}>Gestion des Non-Conformités</p>
+</div>
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 

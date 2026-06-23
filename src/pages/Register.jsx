@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../lib/api.js';
 import { C } from '../lib/theme.js';
 import { IBouclier, ICheck, IAlerte, IUser } from '../components/Icones.jsx';
-import fondQualite from '../assets/fond-controle-qualite.jpg';
+import fondQualite from '../assets/fond-equipe-innofaso.jpg';
 
 const SERVICES = ['Production','Qualité / SMI','Logistique','Maintenance',
   'Commercial','Direction','Informatique','RH','Finance','Autre'];

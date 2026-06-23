@@ -10,7 +10,6 @@ import {
 import BoutonIA from './components/BoutonIA.jsx';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
-console.log('Clé Groq:', GROQ_API_KEY);
 const REF_PAR_DEFAUT = 'PM-SM-EN-FNC-E';
 
 const ETAPES = [
@@ -38,13 +37,12 @@ function etatVide() {
   return {
     refDocument: REF_PAR_DEFAUT,
     emetteur: '', service: '', intitule: '', description: '',
-    verifiePar: '', // --- Vérifié par (étape Identification) ---
+    verifiePar: '',
     criticite: 'moyenne', classification: '', typeObjet: [],
 
-    // --- Bloc Description (étape 2) ---
     descriptionEtape: '',
     preuveTangible: '',
-    preuveTangibleFichier: '', // nom de fichier simulé
+    preuveTangibleFichier: '',
 
     sousType: '',
     nomProduit: '',
@@ -57,7 +55,7 @@ function etatVide() {
     sousTypeAutrePrecision: '',
 
     exigence: '', consequences: '', risques: '',
-    actionImmediate: 'non', actionRealisee: '', realiseePar: '', verifiePar2: '',
+    actionImmediate: 'non', actionRealisee: '', realiseePar: '',
 
     analyse: {
       cinqM: { mainOeuvre: '', methode: '', materiel: '', milieu: '', matiere: '' },
@@ -70,13 +68,10 @@ function etatVide() {
       },
     },
     capa: { actions: [] },
-    // cloture.parResponsable : { [index_action]: { realisation, fichier, decision, verifiePar } }
     cloture: { preuves: '', efficacite: '', majRisques: '', signatureRQ: '', parResponsable: {}, verifieParActions: '' },
   };
 }
 
-// Bandeau d'aide contextuelle par étape — la référence documentaire est éditable
-// uniquement à la première étape (onChangeRef fourni), sinon affichée en lecture.
 function AideEtape({ etape, refDocument, onChangeRef, dis }) {
   const e = ETAPES[etape];
   return (
@@ -112,7 +107,6 @@ function AideEtape({ etape, refDocument, onChangeRef, dis }) {
   );
 }
 
-// Indicateur de complétion de la fiche.
 function ResumeRapide({ nc, form }) {
   if (!nc) return null;
   const champs = [
@@ -148,7 +142,6 @@ function ResumeRapide({ nc, form }) {
   );
 }
 
-// --- Zone d'upload simulée (stocke uniquement le nom du fichier) -----------
 function ZoneUpload({ label, valeur, disabled, onChange }) {
   return (
     <Champ label={label}>
@@ -345,7 +338,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       },
     }));
 
-  // --- Gestion des lignes Pourquoi / Parce que par M -------------------------
   const setLignePourquoi = (m, i, champKey, val) => {
     setForm((f) => {
       const lignes = [...(f.analyse.pourquoiParM?.[m] || [ligneVide()])];
@@ -418,7 +410,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
   const dis = verrouillee;
   const actionsCapa = form.capa.actions || [];
 
-  // Bandeau config IA manquante — visible uniquement si VITE_GROQ_API_KEY absent
   const bandeauGroqManquant = !GROQ_API_KEY && (
     <div style={{
       padding: '9px 14px', borderRadius: 8, marginBottom: 14, fontSize: 12.5,
@@ -430,7 +421,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
     </div>
   );
 
-  // --- Contenu de chaque étape -----------------------------------------------
   const etapes = [
     // Étape 1 — Identification
     <div key="e1">
@@ -457,7 +447,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         <Input value={form.intitule} disabled={dis} onChange={(e) => set('intitule', e.target.value)} placeholder="Résumé en une ligne" />
       </Champ>
 
-      {/* --- Bloc reproduisant la fiche papier "Non-conformité Produit / Service" --- */}
       <div style={{ border: `1.5px solid ${C.borderFort}`, borderRadius: 10, padding: '16px 18px', marginTop: 22, background: '#fbfcfb' }}>
         <h4 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700, color: C.texte, textDecoration: 'underline' }}>
           Non-conformité Produit / Service
@@ -545,20 +534,13 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
             />
           )}
         </div>
-
-        
       </div>
-
-      <Champ label="Vérifié par" obligatoire aide="Nom et prénom de la personne ayant vérifié l'identification de la non-conformité.">
-        <Input value={form.verifiePar} disabled={dis} onChange={(e) => set('verifiePar', e.target.value)} placeholder="Prénom NOM" />
-      </Champ>
     </div>,
 
     // Étape 2 — Description
     <div key="e2">
       <AideEtape etape={1} refDocument={form.refDocument} dis={dis} />
 
-      {/* --- Nouveau bloc Description (étape, preuve tangible + upload) --- */}
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '16px 18px', marginBottom: 20, background: '#fbfcfb' }}>
         <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: C.texte }}>Description</h4>
         <Champ label="Étape" aide="Décrire le moment / l'étape du processus où la non-conformité a été constatée.">
@@ -641,14 +623,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       <Champ label="Risques associés" aide="Risques potentiels si la NC n'est pas traitée.">
         <Textarea value={form.risques} disabled={dis} onChange={(e) => set('risques', e.target.value)} />
       </Champ>
-
-      {/* --- Section transfert déplacée ici, après la description --- */}
-      <SectionTransfert
-        titre="Transférer la fiche par email (après la description)"
-        dis={dis}
-        ncId={nc?.id}
-        ncNumero={nc?.numero}
-      />
     </div>,
 
     // Étape 3 — Action immédiate
@@ -678,25 +652,39 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           <Champ label="Description de l'action réalisée">
             <Textarea value={form.actionRealisee} disabled={dis} onChange={(e) => set('actionRealisee', e.target.value)} placeholder="Décrire précisément l'action de confinement ou de correction immédiate…" />
           </Champ>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Champ label="Réalisée par"><Input value={form.realiseePar} disabled={dis} onChange={(e) => set('realiseePar', e.target.value)} placeholder="Prénom NOM" /></Champ>
-            <Champ label="Vérifiée par"><Input value={form.verifiePar2} disabled={dis} onChange={(e) => set('verifiePar2', e.target.value)} placeholder="Prénom NOM" /></Champ>
-          </div>
+          <Champ label="Réalisée par">
+            <Input value={form.realiseePar} disabled={dis} onChange={(e) => set('realiseePar', e.target.value)} placeholder="Prénom NOM" />
+          </Champ>
         </>
       )}
-      <Champ label="Classification de la NC" aide="La classification majeure ou critique peut déclencher des procédures d'escalade.">
-        <Select value={form.classification} disabled={dis} onChange={(e) => set('classification', e.target.value)}>
-          <option value="">— Choisir la classification —</option>
-          <option value="mineure">Mineure — impact limité, pas de risque immédiat</option>
-          <option value="majeure">Majeure — impact significatif sur qualité ou délai</option>
-          <option value="critique">Critique — risque sécurité, conformité réglementaire</option>
-        </Select>
-      </Champ>
+
+      {/* --- Nouvelle section transfert, juste après l'action immédiate --- */}
+      <SectionTransfert
+        titre="Transférer la fiche par email"
+        dis={dis}
+        ncId={nc?.id}
+        ncNumero={nc?.numero}
+      />
     </div>,
 
-    // Étape 4 — Analyse 5M + 5 Pourquoi (Pourquoi / Parce que côte à côte)
+    // Étape 4 — Vérifié par + Classification, puis Analyse 5M + 5 Pourquoi
     <div key="e4">
       <AideEtape etape={3} refDocument={form.refDocument} dis={dis} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 22 }}>
+        <Champ label="Vérifié par" obligatoire aide="Nom et prénom de la personne ayant vérifié l'identification de la non-conformité.">
+          <Input value={form.verifiePar} disabled={dis} onChange={(e) => set('verifiePar', e.target.value)} placeholder="Prénom NOM" />
+        </Champ>
+        <Champ label="Classification de la NC" aide="La classification majeure ou critique peut déclencher des procédures d'escalade.">
+          <Select value={form.classification} disabled={dis} onChange={(e) => set('classification', e.target.value)}>
+            <option value="">— Choisir la classification —</option>
+            <option value="mineure">Mineure — impact limité, pas de risque immédiat</option>
+            <option value="majeure">Majeure — impact significatif sur qualité ou délai</option>
+            <option value="critique">Critique — risque sécurité, conformité réglementaire</option>
+          </Select>
+        </Champ>
+      </div>
+
       <div style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ color: C.green, display: 'flex' }}><IDoc5M t={18} /></span>
         <span style={{ fontSize: 14, fontWeight: 700, color: C.texte }}>Diagramme Ishikawa — Méthode 5M</span>
@@ -795,9 +783,8 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       <AideEtape etape={4} refDocument={form.refDocument} dis={dis} />
       <PlanCapa actions={form.capa.actions} disabled={dis} onChange={(actions) => set('capa', { actions })} />
 
-      {/* --- Section transfert déplacée ici, après les actions correctives --- */}
       <SectionTransfert
-        titre="Transférer la fiche par email (après les actions correctives)"
+        titre="Transférer la fiche par email"
         dis={dis}
         ncId={nc?.id}
         ncNumero={nc?.numero}
@@ -808,7 +795,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
     <div key="e6">
       <AideEtape etape={5} refDocument={form.refDocument} dis={dis} />
 
-      {/* --- Preuves de mise en œuvre personnalisées par responsable CAPA --- */}
       <div style={{ marginBottom: 22 }}>
         <h4 style={{ margin: '0 0 4px', fontSize: 14.5, fontWeight: 700, color: C.texte }}>
           Preuves de mise en œuvre des actions correctives
@@ -890,7 +876,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       </Champ>
 
       <SectionTransfert
-        titre="Transférer la fiche par email (après évaluation de l'efficacité)"
+        titre="Transférer la fiche par email"
         dis={dis}
         ncId={nc?.id}
         ncNumero={nc?.numero}
@@ -904,7 +890,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       </Champ>
 
       <SectionTransfert
-        titre="Transférer la fiche par email (après clôture)"
+        titre="Transférer la fiche par email"
         dis={false}
         ncId={nc?.id}
         ncNumero={nc?.numero}
@@ -947,10 +933,9 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           <ICadenas t={17} /> Fiche clôturée et verrouillée — consultation en lecture seule.
         </div>
       )}
-{/* Bandeau config IA */}
+
       {bandeauGroqManquant}
 
-      {/* Onglets d'étapes */}
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
         {ETAPES.map((e, i) => (
           <button key={e.titre} onClick={() => setEtape(i)} style={{
@@ -1014,7 +999,6 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
   );
 }
 
-// --- Sous-composant : tableau CAPA éditable ---------------------------------
 function PlanCapa({ actions, disabled, onChange }) {
   const maj = (i, cle, val) => onChange(actions.map((a, j) => (j === i ? { ...a, [cle]: val } : a)));
   const majResp = (i, cle, val) => onChange(actions.map((a, j) => (j === i ? { ...a, responsable: { ...(a.responsable || {}), [cle]: val } } : a)));
