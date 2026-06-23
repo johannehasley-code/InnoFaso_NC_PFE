@@ -546,9 +546,7 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
           )}
         </div>
 
-        <p style={{ textAlign: 'center', margin: '18px 0 0', fontSize: 15, fontWeight: 700, color: C.texte, fontStyle: 'italic' }}>
-          Automatique
-        </p>
+        
       </div>
 
       <Champ label="Vérifié par" obligatoire aide="Nom et prénom de la personne ayant vérifié l'identification de la non-conformité.">
