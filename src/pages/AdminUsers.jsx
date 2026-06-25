@@ -4,7 +4,7 @@ import { C } from '../lib/theme.js';
 import { Carte, Btn, Champ, Input, Select } from '../components/ui.jsx';
 import { IUser, IPlus, ICheck, IAlerte, ICadenas } from '../components/Icones.jsx';
 
-const BASE = '/api';
+const BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 async function req(url, opts = {}) {
   const token = localStorage.getItem('accessToken');
   const res = await fetch(BASE + url, {
