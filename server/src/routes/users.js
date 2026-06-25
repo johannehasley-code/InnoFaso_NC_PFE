@@ -43,4 +43,10 @@ router.put('/:id/password', requireRole('admin'),       changePassword);
 router.put('/:id/activate', requireRole('admin','rq'), activate);
 router.delete('/:id/reject',requireRole('admin'),       reject);
 
+
+router.get('/test', (req, res) => {
+  res.json({ ok: true });
+});
+
+
 export default router;
