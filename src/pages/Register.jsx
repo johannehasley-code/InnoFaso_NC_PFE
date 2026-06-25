@@ -5,6 +5,7 @@ import { authAPI } from '../lib/api.js';
 import { C } from '../lib/theme.js';
 import { IBouclier, ICheck, IAlerte, IUser } from '../components/Icones.jsx';
 import fondQualite from '../assets/fond-equipe-innofaso.jpg';
+import logoInnofaso from '../assets/logo-innofaso.jpg';
 
 const SERVICES = ['Production','Qualité / SMI','Logistique','Maintenance',
   'Commercial','Direction','Informatique','RH','Finance','Autre'];
@@ -121,17 +122,14 @@ export default function Register() {
       <FondPhoto />
       <div style={CARD}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 56, height: 56, borderRadius: 14, marginBottom: 10,
-            background: `linear-gradient(135deg,${C.greenEncreuse},${C.green})`, color: '#fff' }}>
-            <IBouclier t={28} />
-          </div>
-          <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: C.greenFonce }}>
-            INNOFASO
-          </h1>
-          <p style={{ margin: 0, fontSize: 13, color: C.texteDoux }}>Créer votre compte</p>
-        </div>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+  <img
+    src={logoInnofaso}
+    alt="InnoFaso"
+    style={{ height: 100, marginBottom: 14, display: 'block', marginInline: 'auto' }}
+  />
+  <p style={{ margin: 0, fontSize: 13, color: C.texteDoux }}>Gestion des Non-Conformités</p>
+</div>
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
