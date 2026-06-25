@@ -1,5 +1,5 @@
 // src/lib/api.js
-const BASE = '/api';
+const BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function req(url, options = {}) {
   const token = localStorage.getItem('accessToken');
