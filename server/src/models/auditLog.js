@@ -25,8 +25,13 @@ export const getLogs = async ({ userId, action, limit=100, offset=0 }) => {
   const p = [];
   if (userId) { q += ' AND al.user_id = ?'; p.push(userId); }
   if (action)  { q += ' AND al.action LIKE ?'; p.push(`%${action}%`); }
-  q += ' ORDER BY al.created_at DESC LIMIT ? OFFSET ?';
-  p.push(parseInt(limit), parseInt(offset));
+
+  // ✅ FIX : LIMIT/OFFSET injectés directement (sécurisés en entiers),
+  // car mysql2 plante souvent avec LIMIT ?/OFFSET ? en prepared statement (erreur 500).
+  const safeLimit  = Math.min(Math.max(parseInt(limit)  || 100, 1), 1000);
+  const safeOffset = Math.max(parseInt(offset) || 0, 0);
+  q += ` ORDER BY al.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
+
   const [rows] = await pool.execute(q, p);
   return rows;
 };
