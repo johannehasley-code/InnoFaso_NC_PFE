@@ -10,6 +10,10 @@ import { verifyToken } from './middleware/auth.js';
 import usersRouter from './routes/users.js';
 import exportsRouter from './routes/exports.js';
 
+console.log('🚀 APP VERSION USERS ROUTES LOADED');
+
+
+
 export async function creerApp(deps = {}) {
   const store = deps.store || (await creerStore());
   const sms = deps.sms || creerSmsProvider();
@@ -33,6 +37,14 @@ export async function creerApp(deps = {}) {
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/exports', exportsRouter);
+
+
+console.log('✅ Route auth chargée');
+console.log('✅ Route users chargée');
+console.log('✅ Route exports chargée');
+
+
+
 
   app.get('/api/audit-logs', verifyToken, h(async (req, res) => {
     const { getLogs } = await import('./models/auditLog.js');
@@ -158,6 +170,12 @@ const lienApplication = process.env.APP_URL || 'http://localhost:5173';
     res.json({ envoyes: envois.length, envois });
   }));
 
+app.get('/api/test', (req, res) => {
+  res.json({ ok: true });
+});
+
+
+
   app.use((err, req, res, next) => {
     if (err instanceof WorkflowError)
       return res.status(err.status || 409).json({ erreur: err.message, code: err.code });
@@ -170,3 +188,7 @@ const lienApplication = process.env.APP_URL || 'http://localhost:5173';
 
 const app = express();
 app.set('trust proxy', 1);
+
+app.get('/api/test-users', (req, res) => {
+  res.json({ ok: true });
+});
