@@ -19,8 +19,17 @@ export const searchNC = async (req, res) => {
     }
 
     q += ' ORDER BY cree_le DESC';
-    if (req.query.limit)  { q += ' LIMIT ?';  p.push(parseInt(req.query.limit)); }
-    if (req.query.offset) { q += ' OFFSET ?'; p.push(parseInt(req.query.offset)); }
+
+    // ✅ FIX : LIMIT/OFFSET injectés directement (sécurisés en entiers),
+    // car mysql2 plante avec LIMIT ?/OFFSET ? en prepared statement (erreur 500).
+    if (req.query.limit !== undefined) {
+      const safeLimit = Math.min(Math.max(parseInt(req.query.limit) || 100, 1), 1000);
+      q += ` LIMIT ${safeLimit}`;
+    }
+    if (req.query.offset !== undefined) {
+      const safeOffset = Math.max(parseInt(req.query.offset) || 0, 0);
+      q += ` OFFSET ${safeOffset}`;
+    }
 
     const [rows] = await pool.execute(q, p);
 
@@ -58,7 +67,6 @@ export const getExportStats = async (req, res) => {
   }
 };
 
-// ── Export PDF fiche NC ───────────────────────────────────────
 // ── Export PDF fiche NC — Section "1. Identification" fidèle au formulaire ──
 export const exportNcPDF = async (req, res) => {
   try {
@@ -311,7 +319,7 @@ export const exportNcExcel = async (req, res) => {
   }
 };
 
-// ── Rapport mensuel ───────────────────────────────────────────
+// ── Rapport mensuel — version colorée ──────────────────────────
 export const exportRapportMensuel = async (req, res) => {
   const now   = new Date();
   const mois  = parseInt(req.query.mois)  || now.getMonth() + 1;
@@ -349,7 +357,6 @@ export const exportRapportMensuel = async (req, res) => {
     const productTypeStats = { 'PF&SF': { count:0, closed:0 }, 'MP': { count:0, closed:0 }, 'Emballage': { count:0, closed:0 }, 'Autre': { count:0, closed:0 } };
     const matiereStats = {};
 
-    // Standard service list requested (ensures consistent rows even if 0)
     const servicesOrdered = ['Production', 'Qualité/SMI', 'Logistique & Approvisionnement', 'Maintenance', 'Commercial'];
     servicesOrdered.forEach(s => serviceStats[s] = { count:0, closed:0 });
 
@@ -363,12 +370,10 @@ export const exportRapportMensuel = async (req, res) => {
       add(criticiteStats, criticite || 'non_renseignee', isClosed);
       add(statusStats, statut || 'non_renseignee', isClosed);
 
-      // map service into serviceStats if it matches known names, otherwise accumulate under its own key
       const svcKey = servicesOrdered.includes(service) ? service : keyOf(service);
       if (!serviceStats[svcKey]) serviceStats[svcKey] = { count:0, closed:0 };
       serviceStats[svcKey].count += 1; if (isClosed) serviceStats[svcKey].closed += 1;
 
-      // product/service grouping by sousType
       if (sousType.includes('produit') || sousType.includes('produit_fini') || sousType.includes('semi')) {
         productTypeStats['PF&SF'].count += 1; if (isClosed) productTypeStats['PF&SF'].closed += 1;
       } else if (sousType.includes('matiere')) {
@@ -379,41 +384,78 @@ export const exportRapportMensuel = async (req, res) => {
         productTypeStats['Autre'].count += 1; if (isClosed) productTypeStats['Autre'].closed += 1;
       }
 
-      // matière (si renseignée)
       const mat = keyOf(r.matiere || (sousType.includes('matiere') ? (r.nomProduit || r.nom_produit) : ''));
       if (mat && mat !== 'Non renseigné') {
         add(matiereStats, mat, isClosed);
       }
     });
 
-    // Build workbook
+    // ── Construction du classeur avec couleurs ──────────────────
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Rapport Mensuel');
     const nomMois = new Date(annee, mois-1).toLocaleString('fr-FR', { month:'long', year:'numeric' });
 
-    // Title
+    const BLUE        = 'FF1F4E79';
+    const ACCENT       = 'FF3A7D52';
+    const LIGHT_BLUE   = 'FFD6E4F0';
+    const LIGHT_GREEN  = 'FFE2F0E5';
+    const HEADER_GREY  = 'FF6B8E9E';
+    const WHITE        = 'FFFFFFFF';
+
+    // Titre principal
     ws.mergeCells('A1:D1');
-    ws.getCell('A1').value = `RAPPORT MENSUEL QUALITÉ — ${nomMois.toUpperCase()}`;
-    ws.getCell('A1').font = { bold:true, size:14, color:{argb:'FFFFFFFF'} };
-    ws.getCell('A1').fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1F4E79'} };
+    const titleCell = ws.getCell('A1');
+    titleCell.value = `RAPPORT MENSUEL QUALITÉ — ${nomMois.toUpperCase()}`;
+    titleCell.font = { bold:true, size:14, color:{argb:WHITE} };
+    titleCell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUE} };
+    titleCell.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(1).height = 28;
     ws.addRow([]);
 
-    // MAIN summary table
-    ws.addRow(['Résumé général']);
-    ws.addRow(['Total NC', total]);
-    ws.addRow(['NC clôturées', cloturees]);
-    ws.addRow(['Taux de clôture', `${tauxCloture}%`]);
+    // Résumé général
+    const resumeHeaderRow = ws.addRow(['Résumé général']);
+    resumeHeaderRow.getCell(1).font = { bold:true, color:{argb:WHITE} };
+    resumeHeaderRow.getCell(1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:BLUE} };
+
+    const summaryRows = [
+      ['Total NC', total],
+      ['NC clôturées', cloturees],
+      ['Taux de clôture', `${tauxCloture}%`],
+    ];
+    summaryRows.forEach(([label, value], idx) => {
+      const r = ws.addRow([label, value]);
+      const bg = idx % 2 === 0 ? LIGHT_BLUE : WHITE;
+      r.getCell(1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
+      r.getCell(2).fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
+      r.getCell(1).font = { bold:true };
+    });
     ws.addRow([]);
 
-    const makeSmallTable = (title, rowsArr) => {
-      ws.addRow([title]);
-      ws.addRow(['Libellé', 'NC', 'Clôturées', 'Taux clôture']);
-      rowsArr.forEach(([label, stats]) => {
+    const CRIT_COLORS = {
+      faible: 'FFD1FAE5', moyenne: 'FFFFF3CD', elevee: 'FFFEE2E2', critique: 'FFEDE9FE',
+    };
+
+    const makeSmallTable = (title, rowsArr, colorMap = null) => {
+      const titleRow = ws.addRow([title]);
+      titleRow.getCell(1).font = { bold:true, color:{argb:WHITE} };
+      titleRow.getCell(1).fill = { type:'pattern', pattern:'solid', fgColor:{argb:ACCENT} };
+
+      const headerRow = ws.addRow(['Libellé', 'NC', 'Clôturées', 'Taux clôture']);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold:true, color:{argb:WHITE} };
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:HEADER_GREY} };
+      });
+
+      rowsArr.forEach(([label, stats], idx) => {
         const count = stats.count || 0;
         const closed = stats.closed || 0;
         const rate = count ? `${Math.round(closed / count * 100)}%` : '0%';
-        ws.addRow([label, count, closed, rate]);
+        const r = ws.addRow([label, count, closed, rate]);
+        const bg = colorMap?.[String(label).toLowerCase()] || (idx % 2 === 0 ? LIGHT_GREEN : WHITE);
+        r.eachCell((cell) => {
+          cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
+          cell.border = { bottom: { style:'thin', color:{argb:'FFE0E0E0'} } };
+        });
       });
       ws.addRow([]);
     };
@@ -421,7 +463,7 @@ export const exportRapportMensuel = async (req, res) => {
     // Criticité — ensure ordered: faible, moyenne, elevee, critique
     const critOrder = ['faible','moyenne','elevee','critique'];
     const critRows = critOrder.map(k => [k, criticiteStats[k] || {count:0,closed:0}]);
-    makeSmallTable('Taux de clôture par criticité', critRows);
+    makeSmallTable('Taux de clôture par criticité', critRows, CRIT_COLORS);
 
     // Statut — only ouverte & cloturee
     const statutRows = [ ['ouverte', statusStats['ouverte'] || {count:0,closed:0}], ['cloturee', statusStats['cloturee'] || {count:0,closed:0}] ];
@@ -441,7 +483,12 @@ export const exportRapportMensuel = async (req, res) => {
     makeSmallTable('Taux de clôture par matière', matEntries.length ? matEntries : [['Non renseigné',{count:0,closed:0}]]);
 
     ws.addRow([]);
-    ws.addRow(['Date export', new Date().toLocaleString('fr-FR')]);
+    const dateRow = ws.addRow(['Date export', new Date().toLocaleString('fr-FR')]);
+    dateRow.getCell(1).font = { italic:true, color:{argb:'FF888888'} };
+    dateRow.getCell(2).font = { italic:true, color:{argb:'FF888888'} };
+
+    // Largeurs de colonnes pour un rendu plus propre
+    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 14 }];
 
     const filename = `Innofaso_Rapport_${annee}_${String(mois).padStart(2,'0')}.xlsx`;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
