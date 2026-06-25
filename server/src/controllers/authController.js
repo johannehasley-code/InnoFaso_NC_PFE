@@ -18,57 +18,207 @@ const makeTokens = (user) => {
   return { accessToken, refreshToken };
 };
 
+// export const login = async (req, res) => {
+//   const { email, password } = req.body;
+//   const ip = req.ip; const ua = req.headers['user-agent'];
+//   try {
+//     const [rows] = await pool.execute(
+//       `SELECT u.*,r.name AS role,r.label AS role_label,r.permissions
+//        FROM users u JOIN roles r ON u.role_id=r.id
+//        WHERE u.email=?`, [email.toLowerCase().trim()]
+//     );
+//     if (!rows.length) {
+//       await log({ action:'LOGIN_FAILED_UNKNOWN', ipAddress:ip, userAgent:ua, newValue:{email} });
+//       return res.status(401).json({ success:false, message:'Email ou mot de passe incorrect.' });
+//     }
+//     const u = rows[0];
+//     if (!u.actif)
+//       return res.status(403).json({ success:false,
+//         message:'Compte en attente de validation par un administrateur.', pendingValidation:true });
+
+//     if (u.locked_until && new Date(u.locked_until) > new Date()) {
+//       const rem = Math.ceil((new Date(u.locked_until)-new Date())/60000);
+//       return res.status(423).json({ success:false,
+//         message:`Compte verrouillé. Réessayez dans ${rem} minute(s).` });
+//     }
+
+//     const ok = await bcrypt.compare(password, u.password_hash);
+//     if (!ok) {
+//       const att = u.failed_attempts + 1;
+//       const lockUntil = att >= MAX
+//         ? new Date(Date.now()+LOCK*60000).toISOString().slice(0,19).replace('T',' ') : null;
+//       await pool.execute('UPDATE users SET failed_attempts=?,locked_until=? WHERE id=?',[att,lockUntil,u.id]);
+//       const msg = lockUntil ? `Compte verrouillé pour ${LOCK} minutes.`
+//         : `Mot de passe incorrect. ${MAX-att} tentative(s) restante(s).`;
+//       return res.status(401).json({ success:false, message:msg });
+//     }
+
+//     const { accessToken, refreshToken } = makeTokens(u);
+//     const exp = new Date(Date.now()+7*24*3600*1000).toISOString().slice(0,19).replace('T',' ');
+//     await pool.execute('INSERT INTO refresh_tokens (user_id,token,expires_at) VALUES (?,?,?)',
+//                        [u.id, refreshToken, exp]);
+//     await pool.execute('UPDATE users SET failed_attempts=0,locked_until=NULL,last_login=NOW() WHERE id=?',[u.id]);
+//     await log({ userId:u.id, action:'LOGIN_SUCCESS', ipAddress:ip, userAgent:ua });
+
+//     return res.json({ success:true, message:'Connexion réussie.', data:{
+//       accessToken, refreshToken,
+//       user:{ id:u.id, nom:u.nom, prenom:u.prenom, email:u.email,
+//              role:u.role, roleLabel:u.role_label, service:u.service,
+//              permissions: JSON.parse(u.permissions||'{}') }
+//     }});
+//   } catch(err) {
+//     console.error(err);
+//     return res.status(500).json({ success:false, message:'Erreur serveur.' });
+//   }
+// };
+
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  const ip = req.ip; const ua = req.headers['user-agent'];
+  const ip = req.ip;
+  const ua = req.headers['user-agent'];
+
   try {
+    console.log('================ LOGIN DEBUG ================');
+    console.log('DB utilisée :', process.env.DB_NAME);
+    console.log('Email reçu :', email);
+
+    const [tables] = await pool.execute('SHOW TABLES');
+    console.log('Tables disponibles :', tables);
+
     const [rows] = await pool.execute(
-      `SELECT u.*,r.name AS role,r.label AS role_label,r.permissions
-       FROM users u JOIN roles r ON u.role_id=r.id
-       WHERE u.email=?`, [email.toLowerCase().trim()]
+      `SELECT u.*, r.name AS role, r.label AS role_label, r.permissions
+       FROM users u
+       JOIN roles r ON u.role_id = r.id
+       WHERE u.email = ?`,
+      [email.toLowerCase().trim()]
     );
+
+    console.log('Nombre d’utilisateurs trouvés :', rows.length);
+
     if (!rows.length) {
-      await log({ action:'LOGIN_FAILED_UNKNOWN', ipAddress:ip, userAgent:ua, newValue:{email} });
-      return res.status(401).json({ success:false, message:'Email ou mot de passe incorrect.' });
+      await log({
+        action: 'LOGIN_FAILED_UNKNOWN',
+        ipAddress: ip,
+        userAgent: ua,
+        newValue: { email }
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: 'Email ou mot de passe incorrect.'
+      });
     }
+
     const u = rows[0];
-    if (!u.actif)
-      return res.status(403).json({ success:false,
-        message:'Compte en attente de validation par un administrateur.', pendingValidation:true });
+
+    if (!u.actif) {
+      return res.status(403).json({
+        success: false,
+        message: 'Compte en attente de validation par un administrateur.',
+        pendingValidation: true
+      });
+    }
 
     if (u.locked_until && new Date(u.locked_until) > new Date()) {
-      const rem = Math.ceil((new Date(u.locked_until)-new Date())/60000);
-      return res.status(423).json({ success:false,
-        message:`Compte verrouillé. Réessayez dans ${rem} minute(s).` });
+      const rem = Math.ceil(
+        (new Date(u.locked_until) - new Date()) / 60000
+      );
+
+      return res.status(423).json({
+        success: false,
+        message: `Compte verrouillé. Réessayez dans ${rem} minute(s).`
+      });
     }
+
+    console.log('Vérification du mot de passe...');
 
     const ok = await bcrypt.compare(password, u.password_hash);
+
+    console.log('Mot de passe valide :', ok);
+
     if (!ok) {
       const att = u.failed_attempts + 1;
-      const lockUntil = att >= MAX
-        ? new Date(Date.now()+LOCK*60000).toISOString().slice(0,19).replace('T',' ') : null;
-      await pool.execute('UPDATE users SET failed_attempts=?,locked_until=? WHERE id=?',[att,lockUntil,u.id]);
-      const msg = lockUntil ? `Compte verrouillé pour ${LOCK} minutes.`
-        : `Mot de passe incorrect. ${MAX-att} tentative(s) restante(s).`;
-      return res.status(401).json({ success:false, message:msg });
+
+      const lockUntil =
+        att >= MAX
+          ? new Date(Date.now() + LOCK * 60000)
+              .toISOString()
+              .slice(0, 19)
+              .replace('T', ' ')
+          : null;
+
+      await pool.execute(
+        'UPDATE users SET failed_attempts=?, locked_until=? WHERE id=?',
+        [att, lockUntil, u.id]
+      );
+
+      const msg = lockUntil
+        ? `Compte verrouillé pour ${LOCK} minutes.`
+        : `Mot de passe incorrect. ${MAX - att} tentative(s) restante(s).`;
+
+      return res.status(401).json({
+        success: false,
+        message: msg
+      });
     }
 
-    const { accessToken, refreshToken } = makeTokens(u);
-    const exp = new Date(Date.now()+7*24*3600*1000).toISOString().slice(0,19).replace('T',' ');
-    await pool.execute('INSERT INTO refresh_tokens (user_id,token,expires_at) VALUES (?,?,?)',
-                       [u.id, refreshToken, exp]);
-    await pool.execute('UPDATE users SET failed_attempts=0,locked_until=NULL,last_login=NOW() WHERE id=?',[u.id]);
-    await log({ userId:u.id, action:'LOGIN_SUCCESS', ipAddress:ip, userAgent:ua });
+    console.log('Création des tokens...');
 
-    return res.json({ success:true, message:'Connexion réussie.', data:{
-      accessToken, refreshToken,
-      user:{ id:u.id, nom:u.nom, prenom:u.prenom, email:u.email,
-             role:u.role, roleLabel:u.role_label, service:u.service,
-             permissions: JSON.parse(u.permissions||'{}') }
-    }});
-  } catch(err) {
+    const { accessToken, refreshToken } = makeTokens(u);
+
+    const exp = new Date(Date.now() + 7 * 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+
+    await pool.execute(
+      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+      [u.id, refreshToken, exp]
+    );
+
+    await pool.execute(
+      'UPDATE users SET failed_attempts=0, locked_until=NULL, last_login=NOW() WHERE id=?',
+      [u.id]
+    );
+
+    await log({
+      userId: u.id,
+      action: 'LOGIN_SUCCESS',
+      ipAddress: ip,
+      userAgent: ua
+    });
+
+    console.log('Connexion réussie');
+
+    return res.json({
+      success: true,
+      message: 'Connexion réussie.',
+      data: {
+        accessToken,
+        refreshToken,
+        user: {
+          id: u.id,
+          nom: u.nom,
+          prenom: u.prenom,
+          email: u.email,
+          role: u.role,
+          roleLabel: u.role_label,
+          service: u.service,
+          permissions: JSON.parse(u.permissions || '{}')
+        }
+      }
+    });
+  } catch (err) {
+    console.error('============== ERREUR LOGIN ==============');
     console.error(err);
-    return res.status(500).json({ success:false, message:'Erreur serveur.' });
+    console.error('==========================================');
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur.',
+      error: err.message
+    });
   }
 };
 

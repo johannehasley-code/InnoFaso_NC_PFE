@@ -167,3 +167,6 @@ const lienApplication = process.env.APP_URL || 'http://localhost:5173';
 
   return { app, orch, store, sms, rappelsEnvoyes, journalRappels };
 }
+
+const app = express();
+app.set('trust proxy', 1);
