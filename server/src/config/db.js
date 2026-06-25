@@ -26,3 +26,20 @@ pool.getConnection()
   .catch(err => { console.error('❌ Erreur MySQL complète :', err); process.exit(1); });
 
 export default pool;
+
+console.log("DB_USER =", process.env.DB_USER);
+console.log("DB_HOST =", process.env.DB_HOST);
+console.log("DB_NAME =", process.env.DB_NAME);
+
+console.log('HOST=', process.env.DB_HOST);
+console.log('PORT=', process.env.DB_PORT);
+console.log('DB=', process.env.DB_NAME);
+console.log('USER=', process.env.DB_USER);
+
+pool.query('SELECT DATABASE() AS db')
+  .then(([rows]) => console.log('DATABASE=', rows))
+  .catch(console.error);
+
+pool.query('SHOW TABLES')
+  .then(([rows]) => console.log('TABLES=', rows))
+  .catch(console.error);
