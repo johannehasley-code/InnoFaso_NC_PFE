@@ -24,6 +24,16 @@ export const SERVICES = {
     libelle: 'Commercial',
     pilote: { nom: 'ZONGO Mariam', role: 'Pilote Commercial', tel: '+22670000005', email: 'johannehasleydiessongo@gmail.com' },
   },
+  admin_finance: {
+    code: 'admin_finance',
+    libelle: 'Administration et Finance',
+    pilote: { nom: '—', role: 'Pilote Administration et Finance', tel: '', email: 'johannehasleydiessongo@gmail.com' },
+  },
+  ressources_humaines: {
+    code: 'ressources_humaines',
+    libelle: 'Ressources Humaines',
+    pilote: { nom: '—', role: 'Pilote Ressources Humaines', tel: '', email: 'johannehasleydiessongo@gmail.com' },
+  },
 };
 
 export const RQ = { nom: 'TRAORE Salif', role: 'Responsable Qualité (RQ)', tel: '+22670000010', email: 'johannehasleydiessongo@gmail.com' };

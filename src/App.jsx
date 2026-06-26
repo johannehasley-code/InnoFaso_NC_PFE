@@ -1,6 +1,6 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 
 // Pages auth (affichées AVANT le dashboard)
@@ -66,10 +66,10 @@ function NavSection({ label }) {
 }
 
 // ── Layout principal après connexion ─────────────────────────────────────────
-function AppContent() {
+function AppContent({ ncIdInitial = null }) {
   const { user, logout, is } = useAuth();
-  const [vue,      setVue]      = useState('dashboard');
-  const [ncId,     setNcId]     = useState(null);
+  const [vue,      setVue]      = useState(ncIdInitial ? 'fiche' : 'dashboard');
+  const [ncId,     setNcId]     = useState(ncIdInitial);
   const [services, setServices] = useState(SERVICES_DEFAUT);
   const [tick,     setTick]     = useState(0);
 
@@ -185,6 +185,12 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
+// ── Pont entre l'URL /fiche/:id (lien email) et la navigation interne ───────
+function OuvrirFicheDepuisUrl() {
+  const { id } = useParams();
+  return <AppContent ncIdInitial={id} />;
+}
+
 // ── App racine — Login apparaît en PREMIER si non connecté ───────────────────
 export default function App() {
   return (
@@ -194,6 +200,13 @@ export default function App() {
           {/* Pages publiques */}
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* Lien direct vers une fiche précise (transfert par email) */}
+          <Route path="/fiche/:id" element={
+            <ProtectedRoute>
+              <OuvrirFicheDepuisUrl />
+            </ProtectedRoute>
+          } />
 
           {/* Pages protégées — redirige vers /login si non connecté */}
           <Route path="/*" element={

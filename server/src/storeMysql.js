@@ -77,8 +77,8 @@ export class StoreMysql {
       `INSERT INTO nc
         (id, numero, statut, cree_le, maj_le, emetteur, service, intitule,
          description, criticite, classification, type_objet, analyse, capa,
-         cloture, assigne_a, historique, evenements, valeurs_perso)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         cloture, assigne_a, historique, evenements, valeurs_perso, donnees)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ncVersParams(nc),
     );
     return nc;
@@ -90,7 +90,7 @@ export class StoreMysql {
         numero=?, statut=?, cree_le=?, maj_le=?, emetteur=?, service=?,
         intitule=?, description=?, criticite=?, classification=?,
         type_objet=?, analyse=?, capa=?, cloture=?, assigne_a=?,
-        historique=?, evenements=?, valeurs_perso=?
+        historique=?, evenements=?, valeurs_perso=?, donnees=?
        WHERE id=?`,
       [...ncVersParams(ncMaj).slice(1), ncMaj.id],
     );
@@ -149,6 +149,24 @@ export class StoreMysql {
 const dt = (iso) => new Date(iso).toISOString().slice(0, 23).replace('T', ' ');
 const j = (v) => JSON.stringify(v ?? null);
 
+// Champs déjà portés par des colonnes SQL dédiées. Tout le reste de l'objet
+// NC (refDocument, verifiePar, nomProduit, lotInterne, exigence, realiseePar,
+// destinataires, etc.) part dans la colonne JSON générique `donnees`, ce qui
+// évite d'avoir à migrer la table à chaque nouveau champ ajouté au formulaire.
+const COLONNES_DEDIEES = [
+  'id', 'numero', 'statut', 'creeLe', 'majLe', 'emetteur', 'service',
+  'intitule', 'description', 'criticite', 'classification', 'typeObjet',
+  'analyse', 'capa', 'cloture', 'assigneA', 'historique', 'evenements',
+  'valeursPerso',
+];
+
+function extraireDonneesSupplementaires(nc) {
+  const extra = {};
+  for (const k of Object.keys(nc)) {
+    if (!COLONNES_DEDIEES.includes(k)) extra[k] = nc[k];
+  }
+  return extra;
+}
 
 function ncVersParams(nc) {
   return [
@@ -171,6 +189,7 @@ function ncVersParams(nc) {
     j(nc.historique || []),
     j(nc.evenements || []),
     j(nc.valeursPerso || {}),
+    j(extraireDonneesSupplementaires(nc)),
   ];
 }
 // mysql2 renvoie les colonnes JSON déjà parsées (objets) ; on gère les deux cas.
@@ -178,6 +197,7 @@ const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 
 function ligneVersNc(r) {
   return {
+    ...(parse(r.donnees) || {}),
     id: r.id,
     numero: r.numero,
     statut: r.statut,

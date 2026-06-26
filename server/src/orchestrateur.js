@@ -146,22 +146,29 @@ export class Orchestrateur {
     this.journalRappels = journalRappels;
   }
 
+  // Champs gérés exclusivement par le système : jamais écrasés par un patch
+  // entrant, pour protéger l'identité, l'historique et l'assignation de la fiche.
+  static CHAMPS_PROTEGES = [
+    'id', 'numero', 'statut', 'creeLe', 'majLe',
+    'assigneA', 'historique', 'evenements',
+  ];
+
   // Création d'une NC en statut BROUILLON. Aucune assignation ni alerte
   // tant que la fiche n'a pas été soumise explicitement.
+  // NB : tous les champs envoyés par le formulaire (refDocument, verifiePar,
+  // nomProduit, lotInterne, exigence, etc.) sont conservés tels quels — on ne
+  // filtre plus sur une liste figée de champs "connus", ce qui évitait que
+  // les champs ajoutés au formulaire au fil du temps soient perdus en base.
   async creerNc(donnees = {}, { par = 'émetteur' } = {}) {
     const maintenant = new Date().toISOString();
     const nc = {
+      ...donnees,
       id: nouvelId(),
       numero: await this.store.genererNumero(),
       statut: STATUTS.BROUILLON,
       creeLe: maintenant,
       majLe: maintenant,
-      emetteur: donnees.emetteur || '',
-      service: donnees.service || '',
-      intitule: donnees.intitule || '',
-      description: donnees.description || '',
       criticite: donnees.criticite || 'moyenne',
-      classification: donnees.classification || '',
       typeObjet: donnees.typeObjet || [],
       analyse: donnees.analyse || { cinqM: {}, cinqPourquoi: [] },
       capa: donnees.capa || { actions: [] },
@@ -175,18 +182,18 @@ export class Orchestrateur {
     return this.store.ajouterNc(nc);
   }
 
+  // Mise à jour : accepte désormais N'IMPORTE QUEL champ du formulaire (sauf
+  // les champs protégés ci-dessus). C'est ce qui permet à une deuxième
+  // personne de reprendre une fiche déjà partiellement remplie sans perdre
+  // le travail déjà saisi par la première personne.
   async majNc(id, patch, { par = 'utilisateur' } = {}) {
     const nc = await this.store.trouverNc(id);
     if (!nc) throw new WorkflowError('NC introuvable.', 'INTROUVABLE');
     if (estVerrouillee(nc)) {
       throw new WorkflowError('Fiche clôturée et verrouillée : édition impossible.', 'VERROUILLEE');
     }
-    const champsAutorises = [
-      'emetteur', 'service', 'intitule', 'description', 'criticite',
-      'classification', 'typeObjet', 'analyse', 'capa', 'cloture',
-    ];
-    for (const [k, v] of Object.entries(patch)) {
-      if (champsAutorises.includes(k)) nc[k] = v;
+    for (const [k, v] of Object.entries(patch || {})) {
+      if (!Orchestrateur.CHAMPS_PROTEGES.includes(k)) nc[k] = v;
     }
     nc.majLe = new Date().toISOString();
     return this.store.remplacerNc(nc);

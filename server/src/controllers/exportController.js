@@ -2,6 +2,28 @@ import pool from '../db.js';
 import { log } from '../models/auditLog.js';
 import PDFDoc from 'pdfkit';
 import ExcelJS from 'exceljs';
+import { SERVICES } from '../services/organisation.js';
+
+// ── Fusionne la colonne JSON générique `donnees` sur la ligne SQL brute ──
+// Les champs ajoutés au formulaire au fil du temps (nomProduit, fournisseur,
+// lotInterne, quantiteRecue, sousType, realiseePar, descriptionRealiseePar,
+// typeNonConformite, etc.) sont stockés dans la colonne JSON `donnees` et
+// n'apparaissent pas comme colonnes SQL dédiées : sans cette fusion, l'export
+// PDF/Excel les verrait toujours comme `undefined`.
+function fusionnerDonnees(nc) {
+  if (!nc) return nc;
+  let extra = nc.donnees;
+  if (typeof extra === 'string') {
+    try { extra = JSON.parse(extra); } catch { extra = {}; }
+  }
+  return { ...(extra || {}), ...nc };
+}
+
+const LIBELLE_SERVICE = (codeOuLibelle) => {
+  const s = String(codeOuLibelle || '').trim();
+  if (!s) return 'Non renseigné';
+  return SERVICES[s]?.libelle || s;
+};
 
 // ── Recherche NC avec filtres ────────────────────────────────
 export const searchNC = async (req, res) => {
@@ -74,7 +96,7 @@ export const exportNcPDF = async (req, res) => {
     if (!rows.length)
       return res.status(404).json({ success: false, message: 'NC introuvable.' });
 
-    const nc = rows[0];
+    const nc = fusionnerDonnees(rows[0]);
 
     const doc = new PDFDoc({ size: 'A4', margin: 40 });
     res.setHeader('Content-Type', 'application/pdf');
@@ -89,7 +111,7 @@ export const exportNcPDF = async (req, res) => {
 
     const fmt = (d) => d ? new Date(d).toLocaleString('fr-FR') : '—';
     const textSafe = (v) => (v === undefined || v === null || v === '' ? '—' : String(v));
-    const refDoc = 'PM-SM-EN-FNC-E';
+    const refDoc = nc.refDocument || 'PM-SM-EN-FNC-E';
 
     // ── En-tête ────────────────────────────────────────────────
     doc.rect(40, 40, W, 60).fill(BLUE);
@@ -97,10 +119,13 @@ export const exportNcPDF = async (req, res) => {
        .text('FICHE DE NON-CONFORMITÉ', 50, 52);
     doc.fontSize(10).font('Helvetica')
        .text('INNOFASO — Système de Management de la Qualité', 50, 76);
-    doc.fillColor(ACCENT).fontSize(14).font('Helvetica-Bold')
-       .text(nc.numero, W - 60, 58, { align: 'right', width: 90 });
+    // Référence/numéro de fiche : taille adaptée + lineBreak désactivé pour
+    // garantir qu'elle reste toujours sur une seule ligne, même si elle est
+    // plus longue que prévu (ex. numérotation à rallonge).
+    doc.fillColor(ACCENT).fontSize(13).font('Helvetica-Bold')
+       .text(textSafe(nc.numero), 40, 58, { align: 'right', width: W - 10, lineBreak: false });
     doc.fillColor('white').fontSize(8).font('Helvetica')
-       .text(`Réf. : ${refDoc}`, 50, 90);
+       .text(`Réf. : ${refDoc}`, 50, 90, { lineBreak: false });
 
     let y = 115;
 
@@ -205,7 +230,42 @@ export const exportNcPDF = async (req, res) => {
       row('Précision', nc.sousTypeAutrePrecision, 200, 18);
     }
 
-    // ── Pied de page ──────────────────────────────────────────
+    // ── 2. DESCRIPTION ──────────────────────────────────────────
+    // Suite logique de la fiche : la description doit apparaître après
+    // l'identification sur le PDF (et non plus être absente de l'export).
+    doc.addPage();
+    y = 40;
+    section('2. DESCRIPTION DE LA NON-CONFORMITÉ');
+
+    const descFields = [
+      ['Description détaillée', nc.description, 36],
+      ['Vérifié par', nc.verifiePar, 20],
+      ['Type de non-conformité', nc.typeNonConformite, 20],
+      ['Criticité', nc.criticite, 20],
+      ['Exigence non respectée', nc.exigence, 28],
+      ['Conséquences', nc.consequences, 28],
+      ['Risques associés', nc.risques, 28],
+    ];
+    descFields.forEach(([label, value, height]) => {
+      doc.rect(40, y, 160, height).fill('#D6E4F0');
+      doc.rect(200, y, W - 160, height).fill(GREY);
+      doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
+         .text(label, 44, y + 4, { width: 152 });
+      doc.fillColor('#222').font('Helvetica').fontSize(9)
+         .text(textSafe(value), 204, y + 4, { width: W - 168 });
+      y += height + 4;
+    });
+
+    y += 6;
+    // ── Réalisé par (rempli par l'émetteur), en fin de section Description ──
+    doc.rect(40, y, W, 30).fill('#D6E4F0');
+    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
+       .text('Réalisé par', 44, y + 6);
+    doc.fillColor('#222').font('Helvetica-Bold').fontSize(10)
+       .text(textSafe(nc.descriptionRealiseePar || nc.realiseePar || nc.emetteur), 44, y + 17);
+    y += 38;
+
+
     doc.rect(40, y + 10, W, 20).fill(ACCENT);
     doc.fillColor('white').fontSize(8).font('Helvetica')
        .text(
@@ -230,7 +290,8 @@ export const exportNcPDF = async (req, res) => {
 // ── Export Excel liste NC ─────────────────────────────────────
 export const exportNcExcel = async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM nc ORDER BY cree_le DESC');
+    const [rowsRaw] = await pool.execute('SELECT * FROM nc ORDER BY cree_le DESC');
+    const rows = rowsRaw.map(fusionnerDonnees);
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Innofaso SMQ'; wb.created = new Date();
@@ -328,10 +389,11 @@ export const exportRapportMensuel = async (req, res) => {
   const fin   = `${annee}-${String(mois).padStart(2,'0')}-${new Date(annee, mois, 0).getDate()}`;
 
   try {
-    const [rows] = await pool.execute(
+    const [rowsRaw] = await pool.execute(
       'SELECT * FROM nc WHERE cree_le BETWEEN ? AND ? ORDER BY criticite DESC, cree_le DESC',
       [debut, fin + ' 23:59:59']
     );
+    const rows = rowsRaw.map(fusionnerDonnees);
 
     // Exclure les brouillons
     const filtered = rows.filter((r) => String(r.statut || '').toLowerCase() !== 'brouillon');
@@ -357,22 +419,25 @@ export const exportRapportMensuel = async (req, res) => {
     const productTypeStats = { 'PF&SF': { count:0, closed:0 }, 'MP': { count:0, closed:0 }, 'Emballage': { count:0, closed:0 }, 'Autre': { count:0, closed:0 } };
     const matiereStats = {};
 
-    const servicesOrdered = ['Production', 'Qualité/SMI', 'Logistique & Approvisionnement', 'Maintenance', 'Commercial'];
+    const servicesOrdered = Object.values(SERVICES).map((s) => s.libelle);
     servicesOrdered.forEach(s => serviceStats[s] = { count:0, closed:0 });
 
     filtered.forEach((r) => {
       const statut = (r.statut || '').toLowerCase();
       const criticite = (r.criticite || '').toLowerCase();
-      const service = keyOf(r.service || r.service_emetteur || 'Non renseigné');
+      // Le formulaire enregistre le CODE du service (ex. 'qualite',
+      // 'admin_finance'), pas son libellé. On normalise systématiquement
+      // vers le libellé pour éviter d'avoir deux lignes différentes
+      // (une par code, une par libellé) pour le même service réel.
+      const service = LIBELLE_SERVICE(r.service);
       const sousType = String(r.sousType || '').toLowerCase();
       const isClosed = statut === 'cloturee';
 
       add(criticiteStats, criticite || 'non_renseignee', isClosed);
       add(statusStats, statut || 'non_renseignee', isClosed);
 
-      const svcKey = servicesOrdered.includes(service) ? service : keyOf(service);
-      if (!serviceStats[svcKey]) serviceStats[svcKey] = { count:0, closed:0 };
-      serviceStats[svcKey].count += 1; if (isClosed) serviceStats[svcKey].closed += 1;
+      if (!serviceStats[service]) serviceStats[service] = { count:0, closed:0 };
+      serviceStats[service].count += 1; if (isClosed) serviceStats[service].closed += 1;
 
       if (sousType.includes('produit') || sousType.includes('produit_fini') || sousType.includes('semi')) {
         productTypeStats['PF&SF'].count += 1; if (isClosed) productTypeStats['PF&SF'].closed += 1;

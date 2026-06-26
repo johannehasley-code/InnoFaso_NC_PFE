@@ -34,6 +34,12 @@ function ICroix({ t = 12 }) {
 }
 
 const COLONNES_FIXES_DISPONIBLES = [
+  { cle: 'numeroLotInterne', label: 'N° lot interne', get: (nc) => nc.lotInterne || '—' },
+  { cle: 'quantiteRecueCol', label: 'Quantité reçue', get: (nc) => nc.quantiteRecue || '—' },
+  { cle: 'nomMP', label: 'Nom MP', get: (nc) => (nc.sousType === 'matiere_premiere' ? (nc.nomProduit || '—') : '—') },
+  { cle: 'nomPF', label: 'Nom PF / SF', get: (nc) => (nc.sousType === 'produit_fini_semi_fini' ? (nc.nomProduit || '—') : '—') },
+  { cle: 'emballageCol', label: 'Emballage', get: (nc) => (nc.sousType === 'emballage' ? (nc.nomProduit || '—') : '—') },
+  { cle: 'typeNonConformiteCol', label: 'Type NC (Produit/Service)', get: (nc) => nc.typeNonConformite || '—' },
   { cle: 'quantiteAnomalie', label: 'Qté en anomalie', get: (nc) => nc.quantiteAnomalie || '—' },
   { cle: 'actionCorrective', label: 'Action corrective', get: (nc) => {
       const actions = nc.capa?.actions || [];
@@ -45,7 +51,11 @@ const COLONNES_FIXES_DISPONIBLES = [
   { cle: 'classificationCol', label: 'Classification', get: (nc) => nc.classification || '—' },
 ];
 
-const COLONNES_FIXES_PAR_DEFAUT = ['quantiteAnomalie', 'actionCorrective', 'fournisseur', 'typeObjetCol', 'classificationCol'];
+const COLONNES_FIXES_PAR_DEFAUT = [
+  'numeroLotInterne', 'quantiteRecueCol', 'nomMP', 'nomPF', 'emballageCol',
+  'typeNonConformiteCol', 'quantiteAnomalie', 'actionCorrective', 'fournisseur',
+  'typeObjetCol', 'classificationCol',
+];
 
 export default function NcList({ onOuvrir, onNouveau }) {
   const [ncs, setNcs] = useState([]);
@@ -296,7 +306,7 @@ export default function NcList({ onOuvrir, onNouveau }) {
                 <thead>
                   <tr>
                     <th style={{ ...TH, width: 32 }}></th>
-                    {['Numéro NC', 'Intitulé', 'Service', 'Criticité', 'Statut', 'Émetteur', 'Date',
+                    {['Numéro NC', 'Intitulé', 'Service', 'Criticité', 'Statut', 'Date',
                       ...colonnesFixesAffichees.map((c) => c.label),
                       ...colonnesPerso.map((c) => c.libelle),
                     ].map((h, idx) => (
@@ -336,7 +346,6 @@ export default function NcList({ onOuvrir, onNouveau }) {
                           <td style={{ ...TD, color: C.texteDoux }}>{nc.service || '—'}</td>
                           <td style={TD}><BadgeCriticite criticite={nc.criticite} /></td>
                           <td style={TD}><BadgeStatut statut={nc.statut} /></td>
-                          <td style={{ ...TD, color: C.texteDoux, fontSize: 12 }}>{nc.emetteur || '—'}</td>
                           <td style={{ ...TD, color: C.texteFaible, fontSize: 12, fontFamily: C.policeMono }}>
                             {nc.creeLe ? new Date(nc.creeLe).toLocaleDateString('fr-FR') : '—'}
                           </td>
@@ -407,7 +416,7 @@ export default function NcList({ onOuvrir, onNouveau }) {
                         </tr>
                         {ouverte && (
                           <tr>
-                            <td colSpan={8 + nbColonnesSupplementaires} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }}>
+                            <td colSpan={7 + nbColonnesSupplementaires} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }}>
                               <DetailNc nc={nc} />
                             </td>
                           </tr>

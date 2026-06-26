@@ -11,7 +11,7 @@ const LOCK = parseInt(process.env.LOCK_DURATION_MINUTES) || 15;
 const makeTokens = (user) => {
   const payload = { userId:user.id, role:user.role, email:user.email };
   const accessToken  = jwt.sign(payload, process.env.JWT_SECRET,
-                                { expiresIn: process.env.JWT_EXPIRES_IN || '30m' });
+                                { expiresIn: process.env.JWT_EXPIRES_IN || '1h' });
   const refreshToken = jwt.sign({ userId:user.id, jti:uuid() },
                                 process.env.JWT_REFRESH_SECRET,
                                 { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' });
@@ -248,7 +248,7 @@ export const refresh = async (req, res) => {
     const row = rows[0];
     const accessToken = jwt.sign(
       { userId:row.user_id, role:row.role, email:row.email },
-      process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN||'30m' }
+      process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN||'1h' }
     );
     return res.json({ success:true, data:{ accessToken } });
   } catch { return res.status(401).json({ success:false, message:'Refresh token invalide.' }); }

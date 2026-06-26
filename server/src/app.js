@@ -107,7 +107,20 @@ console.log('✅ Route exports chargée');
 
   app.get('/api/nc', verifyToken, h(async (req, res) => {
     const ncs = await store.listerNcs();
-    res.json(ncs.map((n) => orch.infos(n)));
+    const role = req.user?.role;
+    const email = (req.user?.email || '').toLowerCase();
+    // RQ et admin voient tout. Les autres ne voient que les fiches qu'ils ont
+    // créées (creePar) ou qui leur ont été envoyées (destinataires), pour
+    // éviter qu'un simple opérateur voie les fiches de tout le monde.
+    const visibles = (role === 'admin' || role === 'rq')
+      ? ncs
+      : ncs.filter((n) => {
+          const creePar = (n.creePar || '').toLowerCase();
+          const dest = (n.destinataires || []).map((d) => String(d).toLowerCase());
+          const assigneEmail = (n.assigneA?.email || '').toLowerCase();
+          return creePar === email || dest.includes(email) || assigneEmail === email;
+        });
+    res.json(visibles.map((n) => orch.infos(n)));
   }));
 
   app.get('/api/nc/:id', verifyToken, h(async (req, res) => {
@@ -117,7 +130,10 @@ console.log('✅ Route exports chargée');
   }));
 
   app.post('/api/nc', verifyToken, h(async (req, res) => {
-    const nc = await orch.creerNc(req.body || {}, { par: req.user?.email || 'émetteur' });
+    // Trace systématiquement le créateur réel (identité du compte connecté),
+    // indépendamment du champ "Émetteur" saisi librement dans le formulaire.
+    const donnees = { ...(req.body || {}), creePar: req.user?.email || null };
+    const nc = await orch.creerNc(donnees, { par: req.user?.email || 'émetteur' });
     res.status(201).json(orch.infos(nc));
   }));
 
@@ -158,8 +174,12 @@ console.log('✅ Route exports chargée');
     const { destinataire, copies = [], message = '' } = req.body || {};
     if (!destinataire) return res.status(400).json({ erreur: 'Destinataire principal requis' });
 
-const lienApplication = process.env.APP_URL || 'http://localhost:5173';
-    const corps = `INNOFASO QUALITE — Transfert de la fiche ${nc.numero}\nIntitulé : ${nc.intitule || 'Contrôle'}\n\nConsulter la fiche : ${lienApplication}\n\n${message}`;
+    const lienApplication = process.env.APP_URL || 'http://localhost:5173';
+    // Lien direct vers la fiche (et non plus seulement la page d'accueil) :
+    // une fois connecté, le destinataire est redirigé directement sur la
+    // fiche à compléter.
+    const lienFiche = `${lienApplication}/fiche/${nc.id}`;
+    const corps = `INNOFASO QUALITE — Transfert de la fiche ${nc.numero}\nIntitulé : ${nc.intitule || 'Contrôle'}\n\nConsulter / compléter la fiche : ${lienFiche}\n\n${message}`;
     const tousDestinataires = [destinataire, ...copies.filter(Boolean)];
     const envois = await Promise.all(
       tousDestinataires.map((mail) =>
@@ -167,6 +187,17 @@ const lienApplication = process.env.APP_URL || 'http://localhost:5173';
           .catch((e) => ({ erreur: e.message, to: mail })),
       ),
     );
+
+    // Le(s) destinataire(s) doivent désormais voir cette fiche dans leur
+    // propre liste de NC (sans avoir accès à toutes les autres fiches).
+    const destinatairesExistants = (nc.destinataires || []).map((d) => String(d).toLowerCase());
+    const nouveaux = tousDestinataires
+      .map((d) => String(d).toLowerCase())
+      .filter((d) => !destinatairesExistants.includes(d));
+    if (nouveaux.length) {
+      await orch.majNc(nc.id, { destinataires: [...destinatairesExistants, ...nouveaux] });
+    }
+
     res.json({ envoyes: envois.length, envois });
   }));
 

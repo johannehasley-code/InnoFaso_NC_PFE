@@ -8,6 +8,7 @@ import {
   IPlus, IAlerte, IDoc5M, ICalendrier, IUser, IHorloge, IEclair,
 } from './components/Icones.jsx';
 import BoutonIA from './components/BoutonIA.jsx';
+import { useAuth } from './context/AuthContext.jsx';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 const REF_PAR_DEFAUT = 'PM-SM-EN-FNC-E';
@@ -21,7 +22,8 @@ const ETAPES = [
   { titre: 'Clôture', aide: "Vérifiez l'efficacité et clôturez formellement la fiche." },
 ];
 
-const TYPES_OBJET = ['Produit', 'Processus', 'Document', 'Équipement', 'Service / Prestation'];
+const TYPES_OBJET = ['Produit', 'Processus', 'Document', 'Équipement', 'Service / Prestation', 'Emballage', 'MP'];
+const TYPES_NC = ['Produit', 'Service'];
 const CRITICITES = [
   { v: 'faible', l: 'Faible', c: C.greenFonce, bg: C.greenBg },
   { v: 'moyenne', l: 'Moyenne', c: C.bleu, bg: C.bleuBg },
@@ -38,11 +40,12 @@ function etatVide() {
     refDocument: REF_PAR_DEFAUT,
     emetteur: '', service: '', intitule: '', description: '',
     verifiePar: '',
-    criticite: 'moyenne', classification: '', typeObjet: [],
+    criticite: 'moyenne', classification: '', typeObjet: [], typeNonConformite: '',
 
     descriptionEtape: '',
     preuveTangible: '',
     preuveTangibleFichier: '',
+    descriptionRealiseePar: '',
 
     sousType: '',
     nomProduit: '',
@@ -288,6 +291,7 @@ function SectionTransfert({ titre, dis, ncId, ncNumero, onTransfere }) {
 }
 
 export default function FicheNC({ ncId = null, services = [], onChangement }) {
+  const { is } = useAuth();
   const [etape, setEtape] = useState(0);
   const [form, setForm] = useState(etatVide());
   const [nc, setNc] = useState(null);
@@ -583,6 +587,29 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
         </div>
       </Champ>
 
+      <Champ label="Type de non-conformité" aide="La non-conformité concerne-t-elle un produit ou une prestation de service ?">
+        <div style={{ display: 'flex', gap: 10 }}>
+          {TYPES_NC.map((t) => {
+            const sel = form.typeNonConformite === t;
+            return (
+              <label key={t} style={{
+                flex: 1, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13.5,
+                padding: '9px 14px', border: `1.5px solid ${sel ? C.green : C.borderFort}`,
+                borderRadius: 8, cursor: dis ? 'default' : 'pointer',
+                background: sel ? C.greenBg : '#fff', fontWeight: sel ? 600 : 400,
+                color: sel ? C.greenFonce : C.texte, transition: 'all .15s',
+              }}>
+                <input type="radio" name="typeNc" disabled={dis} checked={sel}
+                  onChange={() => set('typeNonConformite', t)}
+                  style={{ accentColor: C.green }} />
+                {t}
+              </label>
+            );
+          })}
+        </div>
+      </Champ>
+
+
       <Champ label="Criticité" aide="La criticité détermine le niveau de priorité et les alertes automatiques déclenchées.">
         <div style={{ display: 'flex', gap: 10 }}>
           {CRITICITES.map((c) => {
@@ -622,6 +649,12 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       </div>
       <Champ label="Risques associés" aide="Risques potentiels si la NC n'est pas traitée.">
         <Textarea value={form.risques} disabled={dis} onChange={(e) => set('risques', e.target.value)} />
+      </Champ>
+
+      <Champ label="Réalisé par" obligatoire aide="Nom de l'émetteur ayant rédigé cette description (rempli par l'émetteur).">
+        <Input value={form.descriptionRealiseePar || form.emetteur} disabled={dis}
+          onChange={(e) => set('descriptionRealiseePar', e.target.value)}
+          placeholder="Prénom NOM" />
       </Champ>
     </div>,
 
@@ -885,8 +918,8 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
       <Champ label="Mise à jour des risques / SMI" aide="Indiquer si la base de risques ou le SMI a été mis à jour suite à cette NC.">
         <Textarea value={form.cloture.majRisques} disabled={dis} onChange={(e) => setCloture('majRisques', e.target.value)} />
       </Champ>
-      <Champ label="Signature du Responsable Qualité (RQ)" obligatoire>
-        <Input value={form.cloture.signatureRQ} disabled={dis} onChange={(e) => setCloture('signatureRQ', e.target.value)} placeholder="Prénom NOM du Responsable Qualité" />
+      <Champ label="Signature du DQRDD" obligatoire>
+        <Input value={form.cloture.signatureRQ} disabled={dis} onChange={(e) => setCloture('signatureRQ', e.target.value)} placeholder="Prénom NOM du DQRDD" />
       </Champ>
 
       <SectionTransfert
@@ -969,9 +1002,9 @@ export default function FicheNC({ ncId = null, services = [], onChangement }) {
               <IEnregistrer t={16} /> Enregistrer le brouillon
             </Btn>
           )}
-          {(!nc || dispo('soumettre')) && !verrouillee && (
+          {(!nc || dispo('soumettre')) && !verrouillee && etape === ETAPES.length - 1 && is('admin', 'rq') && (
             <Btn variant="primary" disabled={enCours} onClick={soumettre}>
-              <IEnvoi t={16} /> Soumettre la fiche
+              <IEnvoi t={16} /> Clôturer
             </Btn>
           )}
           {dispo('prendre_en_charge') && (
