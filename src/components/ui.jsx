@@ -145,12 +145,12 @@ export function Entete({droite }) {
   return (
     <header style={{
       background: C.surface, borderBottom: `1px solid ${C.border}`,
-      padding: '0 clamp(16px, 4vw, 40px)', position: 'sticky', top: 0, zIndex: 20,
+      padding: '0 16px 0 14px', position: 'sticky', top: 0, zIndex: 20,
       boxShadow: '0 1px 0 rgba(20,40,28,.03)',
     }}>
       <div style={{
-        maxWidth: 1180, margin: '0 auto', height: 64,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+        height: 64, display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', gap: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
           <LogoInnofaso />
