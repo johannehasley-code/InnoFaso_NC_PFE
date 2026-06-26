@@ -127,22 +127,22 @@ export const exportNcPDF = async (req, res) => {
     doc.fillColor('white').fontSize(8).font('Helvetica')
        .text(`Réf. : ${refDoc}`, 50, 90, { lineBreak: false });
 
-    let y = 115;
+    let y = 106;
 
-    const row = (label, value, labelW = 160, height = 22) => {
+    const row = (label, value, labelW = 160, height = 18) => {
       doc.rect(40, y, labelW, height).fill('#D6E4F0');
       doc.rect(40 + labelW, y, W - labelW, height).fill(GREY);
-      doc.fillColor(BLUE).fontSize(9).font('Helvetica-Bold')
-         .text(label, 44, y + (height - 11) / 2, { width: labelW - 8 });
-      doc.fillColor('#222').font('Helvetica').fontSize(9)
-         .text(textSafe(value), 44 + labelW, y + (height - 11) / 2, { width: W - labelW - 8 });
+      doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
+         .text(label, 44, y + (height - 9) / 2, { width: labelW - 8 });
+      doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+         .text(textSafe(value), 44 + labelW, y + (height - 9) / 2, { width: W - labelW - 8 });
       y += height + 2;
     };
 
     const section = (title) => {
-      doc.rect(40, y, W, 20).fill(ACCENT);
-      doc.fillColor('white').fontSize(10).font('Helvetica-Bold').text(title, 44, y + 5);
-      y += 24;
+      doc.rect(40, y, W, 16).fill(ACCENT);
+      doc.fillColor('white').fontSize(9).font('Helvetica-Bold').text(title, 44, y + 3.5);
+      y += 19;
     };
 
     // ── 1. IDENTIFICATION ─────────────────────────────────────
@@ -150,44 +150,41 @@ export const exportNcPDF = async (req, res) => {
 
     // N° de fiche / Date-heure (2 colonnes)
     const halfW = (W - 4) / 2;
-    doc.rect(40, y, halfW, 36).fill('#D6E4F0');
-    doc.rect(40 + halfW + 4, y, halfW, 36).fill('#D6E4F0');
-    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-       .text('N° de fiche', 44, y + 4);
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
-       .text(textSafe(nc.numero), 44, y + 18);
-    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-       .text('Date / heure', 44 + halfW + 4, y + 4);
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
-       .text(fmt(nc.cree_le), 44 + halfW + 4, y + 18);
-    y += 42;
+    doc.rect(40, y, halfW, 28).fill('#D6E4F0');
+    doc.rect(40 + halfW + 4, y, halfW, 28).fill('#D6E4F0');
+    doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+       .text('N° de fiche', 44, y + 3);
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+       .text(textSafe(nc.numero), 44, y + 15);
+    doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+       .text('Date / heure', 44 + halfW + 4, y + 3);
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+       .text(fmt(nc.cree_le), 44 + halfW + 4, y + 15);
+    y += 31;
 
     // Émetteur / Service concerné (2 colonnes)
-    doc.rect(40, y, halfW, 36).fill(GREY);
-    doc.rect(40 + halfW + 4, y, halfW, 36).fill(GREY);
-    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-       .text('Émetteur', 44, y + 4);
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
-       .text(textSafe(nc.emetteur), 44, y + 18);
-    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-       .text('Service concerné', 44 + halfW + 4, y + 4);
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
-       .text(textSafe(nc.service), 44 + halfW + 4, y + 18);
-    y += 42;
+    doc.rect(40, y, halfW, 28).fill(GREY);
+    doc.rect(40 + halfW + 4, y, halfW, 28).fill(GREY);
+    doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+       .text('Émetteur', 44, y + 3);
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+       .text(textSafe(nc.emetteur), 44, y + 15);
+    doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+       .text('Service concerné', 44 + halfW + 4, y + 3);
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+       .text(textSafe(nc.service), 44 + halfW + 4, y + 15);
+    y += 31;
 
     // Intitulé de la non-conformité (pleine largeur)
-    doc.rect(40, y, W, 36).fill('#D6E4F0');
-    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-       .text('Intitulé de la non-conformité', 44, y + 4);
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
-       .text(textSafe(nc.intitule), 44, y + 18, { width: W - 8 });
-    y += 44;
+    doc.rect(40, y, W, 28).fill('#D6E4F0');
+    doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+       .text('Intitulé de la non-conformité', 44, y + 3);
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+       .text(textSafe(nc.intitule), 44, y + 15, { width: W - 8 });
+    y += 32;
 
     // ── Bloc "Non-conformité Produit / Service" ────────────────
     section('Non-conformité Produit / Service');
-    doc.fillColor('#555').font('Helvetica-Oblique').fontSize(8)
-       .text('Objet : renseigner tous les champs', 44, y);
-    y += 16;
 
     const checkboxLabels = [
       ['Produit Fini & Semi Fini', nc.sousType === 'produit_fini_semi_fini'],
@@ -195,12 +192,12 @@ export const exportNcPDF = async (req, res) => {
       ['Emballage',                 nc.sousType === 'emballage'],
     ];
     checkboxLabels.forEach(([label, checked]) => {
-      doc.fillColor('#222').font('Helvetica').fontSize(9)
+      doc.fillColor('#222').font('Helvetica').fontSize(8.5)
          .text(checked ? '☑' : '☐', 44, y)
          .text(label, 58, y);
-      y += 16;
+      y += 13;
     });
-    y += 4;
+    y += 2;
 
     const produitFields = [
       ['Nom PF / Semi-fini / MP / Emballage', nc.nomProduit],
@@ -210,69 +207,66 @@ export const exportNcPDF = async (req, res) => {
       ['Quantité reçue / produite',            nc.quantiteRecue],
       ['Quantité en anomalie',                 nc.quantiteAnomalie],
     ];
-    produitFields.forEach(([label, value]) => { row(label, value, 200, 20); });
+    produitFields.forEach(([label, value]) => { row(label, value, 200, 16); });
 
     // Service (préciser le système concerné)
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
        .text(nc.sousType === 'service' ? '☑' : '☐', 44, y)
        .text('Service (préciser le système concerné)', 58, y);
-    y += 16;
+    y += 13;
     if (nc.sousType === 'service' && nc.serviceConcerne) {
-      row('Système concerné', nc.serviceConcerne, 200, 18);
+      row('Système concerné', nc.serviceConcerne, 200, 14);
     }
 
     // Autre (préciser)
-    doc.fillColor('#222').font('Helvetica').fontSize(9)
+    doc.fillColor('#222').font('Helvetica').fontSize(8.5)
        .text(nc.sousType === 'autre' ? '☑' : '☐', 44, y)
        .text('Autre (Nuisibles, Maintenance, Nettoyage, chaîne de froid, Production, Environnement…)', 58, y, { width: W - 70 });
-    y += 26;
+    y += 20;
     if (nc.sousType === 'autre' && nc.sousTypeAutrePrecision) {
-      row('Précision', nc.sousTypeAutrePrecision, 200, 18);
+      row('Précision', nc.sousTypeAutrePrecision, 200, 14);
     }
 
     // ── 2. DESCRIPTION ──────────────────────────────────────────
     // Suite logique de la fiche : la description doit apparaître après
-    // l'identification sur le PDF (et non plus être absente de l'export).
-    doc.addPage();
-    y = 40;
+    // l'identification, sur la même page (tout doit tenir sur une seule page).
+    y += 2;
     section('2. DESCRIPTION DE LA NON-CONFORMITÉ');
 
     const descFields = [
-      ['Description détaillée', nc.description, 36],
-      ['Vérifié par', nc.verifiePar, 20],
-      ['Type de non-conformité', nc.typeNonConformite, 20],
-      ['Criticité', nc.criticite, 20],
-      ['Exigence non respectée', nc.exigence, 28],
-      ['Conséquences', nc.consequences, 28],
-      ['Risques associés', nc.risques, 28],
+      ['Description détaillée', nc.description, 30],
+      ['Vérifié par', nc.verifiePar, 16],
+      ['Type de non-conformité', nc.typeNonConformite, 16],
+      ['Criticité', nc.criticite, 16],
+      ['Exigence non respectée', nc.exigence, 18],
+      ['Conséquences', nc.consequences, 18],
+      ['Risques associés', nc.risques, 18],
     ];
     descFields.forEach(([label, value, height]) => {
-      doc.rect(40, y, 160, height).fill('#D6E4F0');
-      doc.rect(200, y, W - 160, height).fill(GREY);
-      doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-         .text(label, 44, y + 4, { width: 152 });
-      doc.fillColor('#222').font('Helvetica').fontSize(9)
-         .text(textSafe(value), 204, y + 4, { width: W - 168 });
-      y += height + 4;
+      doc.rect(40, y, 150, height).fill('#D6E4F0');
+      doc.rect(190, y, W - 150, height).fill(GREY);
+      doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+         .text(label, 44, y + 3, { width: 142 });
+      doc.fillColor('#222').font('Helvetica').fontSize(8.5)
+         .text(textSafe(value), 194, y + 3, { width: W - 162 });
+      y += height + 2;
     });
 
-    y += 6;
+    y += 3;
     // ── Réalisé par (rempli par l'émetteur), en fin de section Description ──
-    doc.rect(40, y, W, 30).fill('#D6E4F0');
-    doc.fillColor(BLUE).fontSize(8).font('Helvetica-Bold')
-       .text('Réalisé par', 44, y + 6);
-    doc.fillColor('#222').font('Helvetica-Bold').fontSize(10)
-       .text(textSafe(nc.descriptionRealiseePar || nc.realiseePar || nc.emetteur), 44, y + 17);
-    y += 38;
+    doc.rect(40, y, W, 24).fill('#D6E4F0');
+    doc.fillColor(BLUE).fontSize(7.5).font('Helvetica-Bold')
+       .text('Réalisé par', 44, y + 4);
+    doc.fillColor('#222').font('Helvetica-Bold').fontSize(9)
+       .text(textSafe(nc.descriptionRealiseePar || nc.realiseePar || nc.emetteur), 44, y + 13);
+    y += 32;
 
-
-    doc.rect(40, y + 10, W, 20).fill(ACCENT);
-    doc.fillColor('white').fontSize(8).font('Helvetica')
+    doc.rect(40, y, W, 18).fill(ACCENT);
+    doc.fillColor('white').fontSize(7).font('Helvetica')
        .text(
          `Innofaso © ${new Date().getFullYear()} — Document confidentiel — ` +
-         `Généré le ${new Date().toLocaleString('fr-FR')} — ` +
-         `Référence : ${nc.numero}`,
-         44, y + 16,
+         `Généré le ${new Date().toLocaleString('fr-FR')} — Référence : ${nc.numero}`,
+         44, y + 5.5, { width: W - 8, lineBreak: false },
        );
 
     doc.end();
