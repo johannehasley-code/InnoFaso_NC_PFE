@@ -141,7 +141,7 @@ export function LogoInnofaso({ t = 50 }) {
   );
 }
 
-export function Entete({droite }) {
+export function Entete({droite, menuVisible = false, menuOuvert = false, onMenuClick}) {
   return (
     <header style={{
       background: C.surface, borderBottom: `1px solid ${C.border}`,
@@ -152,15 +152,29 @@ export function Entete({droite }) {
         height: 64, display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', gap: 16,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
-          <LogoInnofaso />
+        <div style={{ display: 'flex', alignItems: 'center', gap: menuVisible ? 8 : 13, minWidth: 0 }}>
+          {menuVisible && (
+            <button onClick={onMenuClick} aria-label="Menu" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 36, height: 36, flexShrink: 0, borderRadius: 8,
+              border: `1px solid ${C.border}`, background: C.surfaceAlt,
+              color: C.texte, cursor: 'pointer',
+            }}>
+              {menuOuvert
+                ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </button>
+          )}
+          <LogoInnofaso t={menuVisible ? 36 : 50} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15.5, fontWeight: 700, color: C.texte, lineHeight: 1.15 }}>
+            <div style={{ fontSize: menuVisible ? 13.5 : 15.5, fontWeight: 700, color: C.texte, lineHeight: 1.15, whiteSpace: 'nowrap' }}>
               Innofaso <span style={{ color: C.texteFaible, fontWeight: 500 }}>· Qualité</span>
             </div>
-            <div style={{ fontSize: 12, color: C.texteDoux, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              { 'Gestion des non-conformités'}
-            </div>
+            {!menuVisible && (
+              <div style={{ fontSize: 12, color: C.texteDoux, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Gestion des non-conformités
+              </div>
+            )}
           </div>
         </div>
         {droite}

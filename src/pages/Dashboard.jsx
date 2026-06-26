@@ -283,7 +283,7 @@ export default function Dashboard({ onOuvrir, onNouveau, rafraichir }) {
       </Carte>
 
       {/* Statuts + Services */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18, marginTop: 18, marginBottom: 18 }}>
 
         <Carte titre="Répartition par statut" icone={<ICircuit t={16}/>}>
           {loading

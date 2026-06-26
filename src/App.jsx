@@ -24,6 +24,37 @@ import {
   IHorloge, IEnregistrer,
 } from './components/Icones.jsx';
 
+// ── Détection d'un écran mobile (breakpoint 768px) ──────────────────────────
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= breakpoint
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= breakpoint);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+// ── Icône hamburger / fermeture (menu mobile) ───────────────────────────────
+function IMenu({ ouvert = false, t = 20 }) {
+  if (ouvert) {
+    return (
+      <svg width={t} height={t} viewBox="0 0 24 24" fill="none">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={t} height={t} viewBox="0 0 24 24" fill="none">
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 const SERVICES_DEFAUT = [
   { code: 'production',  libelle: 'Production' },
   { code: 'qualite',     libelle: 'Qualité / SMI' },
@@ -89,10 +120,16 @@ function AppContent({ ncIdInitial = null }) {
   const [sidebarReplie, setSidebarReplie] = useState(
     () => localStorage.getItem('innofaso_sidebar_replie') === '1'
   );
+  const isMobile = useIsMobile(768);
+  const [drawerOuvert, setDrawerOuvert] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('innofaso_sidebar_replie', sidebarReplie ? '1' : '0');
   }, [sidebarReplie]);
+
+  // Sur mobile, le drawer se referme automatiquement après un changement de
+  // vue (clic sur un lien du menu), pour libérer l'écran.
+  const changerVue = (v) => { setVue(v); if (isMobile) setDrawerOuvert(false); };
 
   useEffect(() => {
     api.services().then(setServices).catch(() => {});
@@ -102,31 +139,35 @@ function AppContent({ ncIdInitial = null }) {
   const nouveau = ()  => { setNcId(null); setVue('fiche'); };
   const retour  = ()  => { setVue('dashboard'); setTick(t => t + 1); };
 
-  // Entête droite
+  // Entête droite — compactée sur mobile (icônes seules, sans les libellés
+  // ni le détail nom/rôle, pour ne pas déborder sur petit écran).
   const droite = (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: isMobile ? 6 : 10, alignItems: 'center' }}>
       {vue === 'fiche'
-        ? <Btn variant="ghost"   onClick={retour}><IRetour t={16}/> Tableau de bord</Btn>
-        : <Btn variant="primary" onClick={nouveau}><IPlus  t={17}/> Nouvelle fiche</Btn>
+        ? <Btn variant="ghost"   onClick={retour} title="Tableau de bord"><IRetour t={16}/> {!isMobile && 'Tableau de bord'}</Btn>
+        : <Btn variant="primary" onClick={nouveau} title="Nouvelle fiche"><IPlus  t={17}/> {!isMobile && 'Nouvelle fiche'}</Btn>
       }
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 11px',
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+        padding: isMobile ? '4px' : '5px 11px',
         background: C.surfaceAlt, borderRadius: 8, border: `1px solid ${C.border}` }}>
-        <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+        <div title={`${user?.prenom || ''} ${user?.nom || ''}`} style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
           background: `linear-gradient(135deg,${C.greenFonce},${C.green})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', fontWeight: 700, fontSize: 12 }}>
           {user?.prenom?.[0]}{user?.nom?.[0]}
         </div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.texte, lineHeight: 1.2 }}>
-            {user?.prenom} {user?.nom}
+        {!isMobile && (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.texte, lineHeight: 1.2 }}>
+              {user?.prenom} {user?.nom}
+            </div>
+            <div style={{ fontSize: 11, color: C.texteDoux }}>{user?.roleLabel || user?.role}</div>
           </div>
-          <div style={{ fontSize: 11, color: C.texteDoux }}>{user?.roleLabel || user?.role}</div>
-        </div>
+        )}
       </div>
-      <button onClick={logout} style={{ fontSize: 12, color: C.rouge, background: 'none',
-        border: 'none', cursor: 'pointer', fontWeight: 600, fontFamily: C.police }}>
-        Déconnexion
+      <button onClick={logout} title="Déconnexion" style={{ fontSize: 12, color: C.rouge, background: 'none',
+        border: 'none', cursor: 'pointer', fontWeight: 600, fontFamily: C.police, whiteSpace: 'nowrap' }}>
+        {isMobile ? '⏻' : 'Déconnexion'}
       </button>
     </div>
   );
@@ -153,46 +194,64 @@ function AppContent({ ncIdInitial = null }) {
       <Entete
         sousTitre={vue === 'fiche' ? 'Fiche de non-conformité' : 'Gestion des non-conformités'}
         droite={droite}
+        menuVisible={isMobile}
+        menuOuvert={drawerOuvert}
+        onMenuClick={() => setDrawerOuvert(v => !v)}
       />
 
-      <div style={{ display: 'flex' }}>
+      <div style={{ display: 'flex', position: 'relative' }}>
 
-        {/* ── Sidebar ───────────────────────────────────────────── */}
+        {/* ── Fond sombre derrière le tiroir de menu (mobile uniquement) ──── */}
+        {isMobile && drawerOuvert && (
+          <div onClick={() => setDrawerOuvert(false)} style={{
+            position: 'fixed', inset: 0, top: 64, background: 'rgba(15,25,18,.4)',
+            zIndex: 34,
+          }} />
+        )}
+
+        {/* ── Sidebar (fixe en tiroir sur mobile, fil normal sur desktop) ── */}
         <nav style={{
-          width: sidebarReplie ? 64 : 230, flexShrink: 0,
-          padding: sidebarReplie ? '16px 6px 24px' : '16px 10px 24px',
-          position: 'sticky', top: 64, height: 'calc(100vh - 64px)',
+          width: isMobile ? 240 : (sidebarReplie ? 64 : 230),
+          flexShrink: 0,
+          padding: (sidebarReplie && !isMobile) ? '16px 6px 24px' : '16px 10px 24px',
+          position: isMobile ? 'fixed' : 'sticky',
+          top: isMobile ? 64 : 64,
+          left: 0,
+          height: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 64px)',
           overflowY: 'auto', overflowX: 'hidden', borderRight: `1px solid ${C.border}`,
           background: C.surface, display: 'flex', flexDirection: 'column',
-          transition: 'width .18s ease',
+          transition: isMobile ? 'transform .2s ease' : 'width .18s ease',
+          zIndex: 35,
+          transform: isMobile ? (drawerOuvert ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+          boxShadow: isMobile && drawerOuvert ? '4px 0 18px rgba(0,0,0,.18)' : 'none',
         }}>
-          {/* Bouton plier / déplier */}
-          <button onClick={() => setSidebarReplie(v => !v)}
-            title={sidebarReplie ? 'Déplier le menu' : 'Plier le menu'}
+          {/* Bouton plier/déplier (desktop) ou fermer (mobile) */}
+          <button onClick={() => isMobile ? setDrawerOuvert(false) : setSidebarReplie(v => !v)}
+            title={isMobile ? 'Fermer le menu' : (sidebarReplie ? 'Déplier le menu' : 'Plier le menu')}
             style={{
               display: 'flex', alignItems: 'center',
-              justifyContent: sidebarReplie ? 'center' : 'flex-end',
+              justifyContent: (sidebarReplie && !isMobile) ? 'center' : 'flex-end',
               width: '100%', padding: '4px 6px 10px', background: 'none',
               border: 'none', cursor: 'pointer', color: C.texteFaible,
             }}>
-            <IChevron ouvert={!sidebarReplie} t={16} />
+            {isMobile ? <IMenu ouvert t={16} /> : <IChevron ouvert={!sidebarReplie} t={16} />}
           </button>
 
-          <NavSection label="Principal" collapsed={sidebarReplie} />
-          <NavItem icon={<IJauge    t={17}/>} label="Tableau de bord"   active={vue === 'dashboard'} onClick={() => setVue('dashboard')} collapsed={sidebarReplie} />
-          <NavItem icon={<IFiche    t={17}/>} label="Non-Conformités"   active={vue === 'nc-list'}   onClick={() => setVue('nc-list')} collapsed={sidebarReplie} />
-          <NavItem icon={<IEnregistrer t={17}/>} label="Exports & Rapports" active={vue === 'exports'}  onClick={() => setVue('exports')} collapsed={sidebarReplie} />
+          <NavSection label="Principal" collapsed={sidebarReplie && !isMobile} />
+          <NavItem icon={<IJauge    t={17}/>} label="Tableau de bord"   active={vue === 'dashboard'} onClick={() => changerVue('dashboard')} collapsed={sidebarReplie && !isMobile} />
+          <NavItem icon={<IFiche    t={17}/>} label="Non-Conformités"   active={vue === 'nc-list'}   onClick={() => changerVue('nc-list')} collapsed={sidebarReplie && !isMobile} />
+          <NavItem icon={<IEnregistrer t={17}/>} label="Exports & Rapports" active={vue === 'exports'}  onClick={() => changerVue('exports')} collapsed={sidebarReplie && !isMobile} />
 
           {is('admin', 'rq') && <>
-            <NavSection label="Administration" collapsed={sidebarReplie} />
-            <NavItem icon={<IUser     t={17}/>} label="Utilisateurs"        active={vue === 'users'}    onClick={() => setVue('users')} collapsed={sidebarReplie} />
-            <NavItem icon={<IHorloge  t={17}/>} label="Inscriptions"        active={vue === 'pending'}  onClick={() => setVue('pending')} collapsed={sidebarReplie} />
-            <NavItem icon={<IRecherche t={17}/>} label="Journal d'audit"    active={vue === 'audit'}    onClick={() => setVue('audit')} collapsed={sidebarReplie} />
+            <NavSection label="Administration" collapsed={sidebarReplie && !isMobile} />
+            <NavItem icon={<IUser     t={17}/>} label="Utilisateurs"        active={vue === 'users'}    onClick={() => changerVue('users')} collapsed={sidebarReplie && !isMobile} />
+            <NavItem icon={<IHorloge  t={17}/>} label="Inscriptions"        active={vue === 'pending'}  onClick={() => changerVue('pending')} collapsed={sidebarReplie && !isMobile} />
+            <NavItem icon={<IRecherche t={17}/>} label="Journal d'audit"    active={vue === 'audit'}    onClick={() => changerVue('audit')} collapsed={sidebarReplie && !isMobile} />
           </>}
 
           {/* Profil bas de sidebar */}
           <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
-            {sidebarReplie ? (
+            {(sidebarReplie && !isMobile) ? (
               <div title={`${user?.prenom || ''} ${user?.nom || ''}`} style={{
                 width: 32, height: 32, borderRadius: '50%', margin: '0 auto',
                 background: `linear-gradient(135deg,${C.greenFonce},${C.green})`,
